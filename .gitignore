@@ -33,3 +33,7 @@ android/*.jks
 Thumbs.db
 .idea/
 .vscode/
+
+# Local screenshots and share packages
+.screenshots/
+.trae-html-share-packages/
