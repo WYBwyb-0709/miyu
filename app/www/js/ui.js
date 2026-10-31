@@ -22,6 +22,15 @@
   let menuTargetItem = null;
   let roomMenuEl = null;
   let confirmResolver = null;
+  let booting = false;
+  let skeletonTimer = null;
+  let preserveScroll = false;
+  let focusTrapBound = false;
+
+  const WINDOW_DEFAULT = 250;
+  const WINDOW_STEP = 250;
+  const OVERLAY_IDS = ['authOverlay', 'settingsOverlay', 'roomOverlay', 'contactOverlay',
+    'infoOverlay', 'unlockOverlay', 'confirmOverlay', 'imageOverlay'];
 
   function toast(text, ms) {
     const el = $('toast');
@@ -40,6 +49,7 @@
       $('confirmOk').textContent = okLabel || '确认';
       overlay.classList.remove('hidden');
       confirmResolver = resolve;
+      setTimeout(() => { try { $('confirmCancel').focus(); } catch { /* 忽略 */ } }, 40);
     });
   }
 
@@ -98,6 +108,7 @@
   function renderRoomList() {
     const el = roomListEl();
     if (!el) return;
+    if (booting) return;
     if (S.tab !== 'chats') { el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
     const q = (S.roomSearch || '').trim();
@@ -164,6 +175,19 @@
 
       item.append(av, meta, side);
       item.onclick = () => MY.chat.switchRoom(room.id);
+      item.tabIndex = 0;
+      item.setAttribute('role', 'button');
+      item.setAttribute('aria-label', `会话：${room.label || '未命名'}`);
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          MY.chat.switchRoom(room.id);
+        } else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+          e.preventDefault();
+          const r = item.getBoundingClientRect();
+          openRoomMenu(room, r.left + 40, r.top + 28);
+        }
+      });
       item.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         openRoomMenu(room, e.clientX, e.clientY);
@@ -242,6 +266,12 @@
       const ok = await U.copyText(S.pub || '');
       toast(ok ? '公钥已复制' : '复制失败');
     };
+    meCard.tabIndex = 0;
+    meCard.setAttribute('role', 'button');
+    meCard.setAttribute('aria-label', '我的公钥，按下复制');
+    meCard.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); meCard.click(); }
+    });
     el.appendChild(meCard);
 
     const contacts = [...S.contacts.entries()]
@@ -285,6 +315,12 @@
       meta.append(n, p);
       row.append(av, meta);
       row.onclick = () => MY.chat.openDM(pub);
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `联系人：${c.name || P.displayName(pub)}，按下发起私聊`);
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); MY.chat.openDM(pub); }
+      });
       el.appendChild(row);
     }
 
@@ -298,7 +334,11 @@
 
   function switchTab(tab) {
     S.tab = tab;
-    for (const b of $$('#sideTabs button')) b.classList.toggle('active', b.dataset.tab === tab);
+    for (const b of $$('#sideTabs button')) {
+      const on = b.dataset.tab === tab;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
     scheduleRoomList();
     renderContacts();
   }
@@ -342,8 +382,13 @@
 
   function fileLine(item) {
     const pct = Math.round(Math.max(0, Math.min(1, item.fileProgress || 0)) * 100);
+    const mine = (item.displayPubkey || (item.ev && item.ev.pubkey)) === S.pub;
     if (item.failed) {
-      if (item.fileError === 'timeout') return { text: `传输超时 · ${pct}% · 可重试`, cls: 'fail' };
+      if (item.fileError === 'timeout') {
+        return mine
+          ? { text: `传输超时 · ${pct}% · 可重试`, cls: 'fail' }
+          : { text: `传输超时 · ${pct}% · 等待对方补发`, cls: 'wait' };
+      }
       if (item.fileError === 'corrupt') return { text: '文件校验失败，内容可能不完整', cls: 'fail' };
       return { text: '文件传输失败', cls: 'fail' };
     }
@@ -427,11 +472,15 @@
       dl.type = 'button';
       dl.textContent = '↓';
       dl.title = '保存文件';
+      dl.setAttribute('aria-label', '保存文件');
       dl.onclick = async (e) => {
         e.stopPropagation();
         const blob = await MY.store.loadBlob(item.ev.id);
-        if (blob) await U.saveBlob(blob, meta.name);
-        else U.saveBlob(new Blob([], { type: meta.mime }), meta.name);
+        if (!blob) {
+          toast('文件缓存已失效，请让对方重新发送');
+          return;
+        }
+        await U.saveBlob(blob, meta.name);
       };
       card.appendChild(dl);
     }
@@ -517,6 +566,17 @@
       st.className = 'msg-status ' + (item.status === 'fail' ? 'fail' : 'pending');
       st.textContent = item.status === 'fail' ? '发送失败' : '发送中…';
       body.appendChild(st);
+      if (item.status === 'fail') {
+        const retry = document.createElement('button');
+        retry.className = 'msg-retry';
+        retry.type = 'button';
+        retry.textContent = '重发';
+        retry.onclick = (e) => {
+          e.stopPropagation();
+          MY.chat.retryText(item);
+        };
+        body.appendChild(retry);
+      }
     }
 
     group.appendChild(body);
@@ -525,6 +585,8 @@
     menuBtn.className = 'msg-menu-btn';
     menuBtn.type = 'button';
     menuBtn.title = '消息操作';
+    menuBtn.setAttribute('aria-label', '消息操作');
+    menuBtn.setAttribute('aria-haspopup', 'menu');
     menuBtn.textContent = '⋯';
     menuBtn.onclick = (e) => {
       e.stopPropagation();
@@ -551,16 +613,7 @@
     return group;
   }
 
-  function renderMessages() {
-    const el = messagesEl();
-    const room = P.roomById(S.activeRoomId);
-    if (!el) return;
-    if (!room) {
-      el.textContent = '';
-      renderedSignature = '';
-      return;
-    }
-    const q = S.searchOpen ? S.msgSearch.trim().toLowerCase() : '';
+  function roomVisibleItems(room, q) {
     let items = room.events
       .filter((i) => !i.deleted)
       .sort((a, b) => a.ev.created_at - b.ev.created_at);
@@ -573,8 +626,78 @@
         return false;
       });
     }
+    return items;
+  }
 
-    const sig = `${room.id}|${q}|` + items.map((i) => [
+  function roomRenderLimit(room) {
+    return Math.max(WINDOW_DEFAULT, Number(room.renderLimit) || WINDOW_DEFAULT);
+  }
+
+  function setEmptyState(show) {
+    const welcome = $('emptyWelcome');
+    const msgs = messagesEl();
+    const composer = $('composer');
+    if (welcome) welcome.classList.toggle('hidden', !show);
+    if (msgs) msgs.classList.toggle('hidden', show);
+    if (composer) composer.classList.toggle('hidden', show);
+    if (show) {
+      const btn = $('scrollDownBtn');
+      if (btn) btn.classList.add('hidden');
+    }
+  }
+
+  function updateScrollBtn() {
+    const el = messagesEl();
+    const btn = $('scrollDownBtn');
+    if (!btn) return;
+    const far = !!el && !el.classList.contains('hidden')
+      && (el.scrollHeight - el.scrollTop - el.clientHeight) > 300;
+    btn.classList.toggle('hidden', !far);
+  }
+
+  function scrollToBottom() {
+    const el = messagesEl();
+    if (!el) return;
+    const far = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const jump = () => {
+      const prevBehavior = el.style.scrollBehavior;
+      el.style.scrollBehavior = 'auto';
+      el.scrollTop = el.scrollHeight;
+      el.style.scrollBehavior = prevBehavior;
+    };
+    if (far > 2000) {
+      // 距离过远时直接定位，避免长时间滚动动画；下一帧再校正一次
+      jump();
+      requestAnimationFrame(jump);
+      return;
+    }
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }
+
+  function renderMessages() {
+    const el = messagesEl();
+    if (!el) return;
+    const room = P.roomById(S.activeRoomId);
+
+    if (!room) {
+      if (booting) return;
+      setEmptyState(true);
+      if (renderedSignature !== 'empty') {
+        el.textContent = '';
+        renderedSignature = 'empty';
+      }
+      updateScrollBtn();
+      return;
+    }
+    setEmptyState(false);
+
+    const q = S.searchOpen ? S.msgSearch.trim().toLowerCase() : '';
+    const all = roomVisibleItems(room, q);
+    const limit = q ? all.length : roomRenderLimit(room);
+    const items = all.length > limit ? all.slice(all.length - limit) : all;
+    const hasOlderLocal = !q && all.length > items.length;
+
+    const sig = `${room.id}|${q}|${limit}|` + items.map((i) => [
       i.ev.id, i.recalled ? 'r' : '', i.status || '', i.failed ? 'f' : '',
       i.downloadUrl ? 'd' : '', i.fileProgress || 0, i.text == null ? 'n' : 't',
       i.deleted ? 'x' : '', i.replyTo ? 'q' : '',
@@ -582,7 +705,22 @@
     if (sig === renderedSignature) return;
 
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    const fromBottom = preserveScroll ? el.scrollHeight - el.scrollTop : 0;
+    preserveScroll = false;
     el.textContent = '';
+
+    const canEarlier = !q && items.length > 0 && (hasOlderLocal || (!room.remoteExhausted && items.length >= limit));
+    if (canEarlier) {
+      const wrap = document.createElement('div');
+      wrap.className = 'load-earlier';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'loadEarlierBtn';
+      btn.textContent = '加载更早消息';
+      btn.onclick = () => { loadEarlier(); };
+      wrap.appendChild(btn);
+      el.appendChild(wrap);
+    }
 
     if (room.type === 'group' && room.encrypted && !room.key) {
       const warn = document.createElement('div');
@@ -615,15 +753,66 @@
 
     const countEl = $('searchCount');
     if (countEl) countEl.textContent = q ? `${items.length} 条` : '';
-    if (!q && (atBottom || !items.length)) el.scrollTop = el.scrollHeight;
+    if (fromBottom || (!q && (atBottom || !items.length))) {
+      // 重渲染时直接定位，避免长距离平滑滚动
+      const prevBehavior = el.style.scrollBehavior;
+      el.style.scrollBehavior = 'auto';
+      el.scrollTop = fromBottom ? Math.max(0, el.scrollHeight - fromBottom) : el.scrollHeight;
+      el.style.scrollBehavior = prevBehavior;
+    }
     renderedSignature = sig;
+    updateScrollBtn();
+  }
+
+  async function loadEarlier() {
+    const room = P.roomById(S.activeRoomId);
+    if (!room || room.loadingOlder) return;
+    const all = roomVisibleItems(room, '');
+    const limit = roomRenderLimit(room);
+    if (all.length > limit) {
+      room.renderLimit = limit + WINDOW_STEP;
+      preserveScroll = true;
+      invalidateRender();
+      scheduleRender();
+      return;
+    }
+    if (room.remoteExhausted) return;
+    const btn = messagesEl().querySelector('#loadEarlierBtn');
+    room.loadingOlder = true;
+    if (btn) { btn.disabled = true; btn.textContent = '加载中…'; }
+    let added = 0;
+    try {
+      added = await MY.chat.loadOlder(room);
+    } catch { added = 0; }
+    room.loadingOlder = false;
+    if (added > 0) room.renderLimit = Math.min(5000, limit + Math.max(WINDOW_STEP, added));
+    preserveScroll = true;
+    invalidateRender();
+    scheduleRender();
   }
 
   function scrollToMessage(id) {
     const el = messagesEl();
     if (!el || !id) return;
+    const room = P.roomById(S.activeRoomId);
     const node = el.querySelector(`[data-evid="${CSS.escape(id)}"]`);
-    if (!node) return;
+    if (!node) {
+      // 目标被渲染窗口裁掉时先扩大窗口再滚动
+      if (!room) return;
+      const all = roomVisibleItems(room, '');
+      const idx = all.findIndex((i) => i.ev.id === id);
+      if (idx < 0) return;
+      const need = all.length - idx + 20;
+      if (need > roomRenderLimit(room)) {
+        room.renderLimit = Math.min(5000, need);
+        invalidateRender();
+        renderMessages();
+      }
+      const retry = messagesEl().querySelector(`[data-evid="${CSS.escape(id)}"]`);
+      if (!retry) return;
+      retry.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     node.scrollIntoView({ behavior: 'smooth', block: 'center' });
     const bubble = node.querySelector('.msg-bubble');
     if (bubble) {
@@ -662,18 +851,34 @@
   }
 
   /* ── 头部与连接状态 ── */
+  function connText(st) {
+    if (st.total === 0) return '未配置中继';
+    if (st.connected > 0) return `已连接 ${st.connected}/${st.total} 个中继`;
+    const elapsed = Date.now() - (Number(S.bootAt) || 0);
+    if (elapsed < 12000) return '正在连接中继…';
+    return '中继离线 · 消息可能延迟';
+  }
+
+  function setTopbarEnabled(on) {
+    for (const id of ['btnChatSearch', 'btnRoomInfo', 'btnRoomMore']) {
+      const btn = $(id);
+      if (btn) btn.disabled = !on;
+    }
+  }
+
   function updateHeader(room) {
     const title = $('roomTitle');
     const sub = $('roomSub');
     if (!title || !sub) return;
+    const st = MY.net.status();
+    const conn = connText(st);
+    setTopbarEnabled(!!room);
     if (!room) {
-      title.textContent = '选择一个会话';
-      sub.textContent = '在左侧开始聊天';
+      title.textContent = '尚未选择会话';
+      sub.textContent = `新建或加入一个会话开始聊天 · ${conn}`;
       return;
     }
     title.textContent = room.label || '未命名';
-    const st = MY.net.status();
-    const conn = st.connected > 0 ? `已连接 ${st.connected}/${st.total} 个中继` : '未连接中继';
     if (room.type === 'dm') {
       sub.textContent = `私聊 · 端到端加密 · ${conn}`;
     } else {
@@ -686,13 +891,99 @@
   function updateConnUI() {
     const st = MY.net.status();
     const dot = $('connDot');
-    if (dot) dot.classList.toggle('offline', st.connected === 0);
-    const room = P.roomById(S.activeRoomId);
-    if (room) updateHeader(room);
+    if (dot) {
+      dot.classList.remove('offline', 'connecting');
+      if (st.connected === 0) {
+        const elapsed = Date.now() - (Number(S.bootAt) || 0);
+        dot.classList.add(elapsed < 12000 ? 'connecting' : 'offline');
+      }
+    }
+    updateHeader(P.roomById(S.activeRoomId) || null);
     const backend = $('storageBackend');
     if (backend) backend.textContent = MY.store.backendName;
-    const st2 = $('storageBackend');
-    if (st2) st2.textContent = MY.store.backendName;
+  }
+
+  /* ── 加载骨架 ── */
+  function paintSkeleton() {
+    skeletonTimer = null;
+    if (!booting) return;
+    const el = messagesEl();
+    if (el && !el.textContent.trim() && !P.roomById(S.activeRoomId)) {
+      for (let i = 0; i < 8; i++) {
+        const row = document.createElement('div');
+        row.className = 'skel-msg skeleton' + (i % 3 === 2 ? ' right' : '');
+        el.appendChild(row);
+      }
+    }
+    const list = roomListEl();
+    if (list && S.tab === 'chats' && !list.textContent.trim()) {
+      for (let i = 0; i < 5; i++) {
+        const row = document.createElement('div');
+        row.className = 'skel-room';
+        const av = document.createElement('div');
+        av.className = 'skel-av skeleton';
+        const lines = document.createElement('div');
+        lines.className = 'skel-lines';
+        const l1 = document.createElement('div');
+        l1.className = 'skel-l1 skeleton';
+        const l2 = document.createElement('div');
+        l2.className = 'skel-l2 skeleton';
+        lines.append(l1, l2);
+        row.append(av, lines);
+        list.appendChild(row);
+      }
+    }
+  }
+
+  function showSkeleton() {
+    booting = true;
+    clearTimeout(skeletonTimer);
+    skeletonTimer = setTimeout(paintSkeleton, 200);
+  }
+
+  function hideSkeleton() {
+    booting = false;
+    clearTimeout(skeletonTimer);
+    skeletonTimer = null;
+    const el = messagesEl();
+    if (el) el.textContent = '';
+    const list = roomListEl();
+    if (list) list.textContent = '';
+    renderedSignature = '';
+  }
+
+  /* ── 弹层焦点陷阱（Tab / Shift+Tab 在弹层内循环） ── */
+  function visibleOverlay() {
+    for (const id of OVERLAY_IDS) {
+      const el = $(id);
+      if (el && !el.classList.contains('hidden')) return el;
+    }
+    return null;
+  }
+
+  function bindFocusTrap() {
+    if (focusTrapBound) return;
+    focusTrapBound = true;
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const overlay = visibleOverlay();
+      if (!overlay) return;
+      const nodes = overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      const list = [...nodes].filter((n) => !n.disabled && n.offsetParent !== null);
+      if (!list.length) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (!overlay.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
   }
 
   function refreshProfileUI() {
@@ -758,6 +1049,7 @@
     });
     messagesEl().addEventListener('scroll', () => {
       if (!menu.classList.contains('hidden')) closeMsgMenu();
+      updateScrollBtn();
     }, { passive: true });
     document.addEventListener('scroll', closeRoomMenu, { passive: true });
   }
@@ -813,13 +1105,19 @@
       };
       panel.appendChild(b);
     }
+    const togglePanel = (open) => {
+      const show = typeof open === 'boolean' ? open : panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !show);
+      const btn = $('emojiBtn');
+      if (btn) btn.setAttribute('aria-expanded', show ? 'true' : 'false');
+    };
     $('emojiBtn').onclick = (e) => {
       e.stopPropagation();
-      panel.classList.toggle('hidden');
+      togglePanel();
     };
     document.addEventListener('click', (e) => {
       if (!panel.classList.contains('hidden') && !panel.contains(e.target) && e.target.id !== 'emojiBtn') {
-        panel.classList.add('hidden');
+        togglePanel(false);
       }
     });
   }
@@ -894,5 +1192,12 @@
     fileLine,
     scrollToMessage,
     shouldShowAvatar,
+    showSkeleton,
+    hideSkeleton,
+    loadEarlier,
+    scrollToBottom,
+    updateScrollBtn,
+    bindFocusTrap,
+    setTopbarEnabled,
   };
 })(window.MY = window.MY || {});

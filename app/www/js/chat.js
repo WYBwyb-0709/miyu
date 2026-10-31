@@ -675,7 +675,88 @@
     }
   }
 
+  /* ── 加载更早消息（分页） ── */
+
+  async function loadOlder(room) {
+    if (!room) return 0;
+    const st = MY.net.status();
+    if (!st.connected) {
+      MY.ui.toast('中继未连接，暂时无法加载更早消息');
+      return 0;
+    }
+    let earliest = Infinity;
+    for (const i of room.events) {
+      if (!i.ev || i.deleted) continue;
+      const at = Number(i.ev.created_at) || 0;
+      if (at && at < earliest) earliest = at;
+    }
+    const until = Number.isFinite(earliest) ? earliest - 1 : null;
+    const before = room.events.length;
+    try {
+      if (room.type === 'group') {
+        const filter = { kinds: [1, 5], '#t': [room.id], limit: 300 };
+        if (until) filter.until = until;
+        const rows = await MY.net.query(filter, 7000);
+        const sorted = sortedForLoad(rows.filter(Boolean));
+        for (const ev of sorted) await handleGroupEvent(ev, { silent: true });
+        room.remoteExhausted = sorted.length < 300;
+      } else {
+        const filter = { kinds: [1059], '#p': [S.pub], limit: 300 };
+        if (until) filter.until = until;
+        const wraps = await MY.net.query(filter, 7000);
+        const sorted = sortedForLoad(wraps.filter(Boolean));
+        for (const wrap of sorted) await handleDM(wrap, { silent: true });
+        room.remoteExhausted = sorted.length < 300;
+      }
+    } catch { return 0; }
+    const added = room.events.length - before;
+    if (added === 0) room.remoteExhausted = true;
+    MY.ui.scheduleRender();
+    MY.ui.scheduleRoomList();
+    return added;
+  }
+
   /* ── 发送 ── */
+
+  async function retryText(item) {
+    const room = activeRoom();
+    if (!room || !item || !item.ev || item.fileMeta || item.deleted || item.recalled) return false;
+    if (room.encrypted && !room.key) { MY.ui.toast('请先输入房间密码解锁'); return false; }
+    const createdAt = Number(item.ev.created_at) || nowSec();
+    let publishEv = null;
+    try {
+      if (room.type === 'dm') {
+        publishEv = await wrapDM(room.peerPub, {
+          kind: 1,
+          content: item.text == null ? '' : item.text,
+          tags: Array.isArray(item.ev.tags) ? item.ev.tags : [],
+          created_at: createdAt,
+        });
+        item.wrapIds = [publishEv.id];
+      } else {
+        // 群聊消息本身是已签名事件，直接重发，事件 id 保持不变
+        if (!V.verifyEvent(item.ev)) return false;
+        publishEv = item.ev;
+      }
+    } catch (e) {
+      MY.ui.toast('重发失败：' + (e && e.message ? e.message : '加密错误'));
+      return false;
+    }
+    item.status = 'pending';
+    MY.ui.scheduleRender();
+    MY.store.saveEvent(room.id, item).catch(() => {});
+    MY.net.publish(publishEv, 3).then((ok) => {
+      item.status = ok ? 'ok' : 'fail';
+      MY.store.saveEvent(room.id, item).catch(() => {});
+      if (S.activeRoomId === room.id) MY.ui.scheduleRender();
+      if (!ok) MY.ui.toast('网络不可用，消息仍未发送');
+    }).catch(() => {
+      item.status = 'fail';
+      MY.store.saveEvent(room.id, item).catch(() => {});
+      if (S.activeRoomId === room.id) MY.ui.scheduleRender();
+    });
+    return true;
+  }
 
   async function sendText(text) {
     const room = activeRoom();
@@ -1422,6 +1503,8 @@
     parseInvite,
     backfillRoom,
     backfillDMs,
+    loadOlder,
+    retryText,
     shutdown,
     activeRoom,
     ensureDMRoom,

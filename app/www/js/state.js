@@ -82,7 +82,9 @@
     const wrap = $('accentSwatches');
     if (wrap) {
       for (const btn of wrap.querySelectorAll('.swatch')) {
-        btn.classList.toggle('active', btn.dataset.accent === state.settings.accent);
+        const on = btn.dataset.accent === state.settings.accent;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       }
     }
     if (state.activeRoomId && MY.ui) MY.ui.scheduleRender();

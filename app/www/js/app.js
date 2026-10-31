@@ -488,6 +488,12 @@
     if ($('btnNewDM')) $('btnNewDM').onclick = () => openContactModal('dm');
     if ($('btnAddContact')) $('btnAddContact').onclick = () => openContactModal('contact');
 
+    if ($('btnEmptyNew')) $('btnEmptyNew').onclick = () => openRoomModal('new');
+    if ($('btnEmptyJoin')) $('btnEmptyJoin').onclick = () => openRoomModal('join');
+    if ($('btnEmptyDM')) $('btnEmptyDM').onclick = () => openContactModal('dm');
+    if ($('btnEmptyContact')) $('btnEmptyContact').onclick = () => openContactModal('contact');
+    if ($('scrollDownBtn')) $('scrollDownBtn').onclick = () => MY.ui.scrollToBottom();
+
     const tabs = $('sideTabs');
     if (tabs) {
       tabs.addEventListener('click', (e) => {
@@ -711,8 +717,13 @@
     S.ready = true;
     MY.settings.loadSettings();
     MY.settings.applySettings();
+    MY.ui.showSkeleton();
     MY.ui.refreshProfileUI();
-    await MY.chat.loadRooms();
+    try {
+      await MY.chat.loadRooms();
+    } finally {
+      MY.ui.hideSkeleton();
+    }
     MY.chat.refreshSubscriptions();
     MY.ui.renderRoomList();
     MY.ui.renderContacts();
@@ -732,6 +743,7 @@
     else {
       MY.ui.updateHeader(null);
       MY.chat.updateComposer();
+      MY.ui.scheduleRender();
     }
 
     MY.chat.backfillDMs(true).catch(() => {});
@@ -762,6 +774,7 @@
     MY.ui.initConfirm();
     MY.ui.bindMessageMenu();
     MY.ui.initEmoji();
+    MY.ui.bindFocusTrap();
     bindUI();
 
     await loadDesktopConfig();
