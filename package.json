@@ -12,8 +12,9 @@
     "relay": "node relay/src/server.js",
     "test:relay": "node scripts/test-relay.mjs",
     "test:browser": "node tests/smoke.mjs",
+    "test:store": "node tests/store-room-isolation.mjs",
     "test:desktop": "node tests/desktop-smoke.mjs",
-    "test": "node scripts/test-relay.mjs && node tests/smoke.mjs",
+    "test": "node scripts/test-relay.mjs && node tests/smoke.mjs && node tests/store-room-isolation.mjs",
     "android:sync": "cap sync android"
   },
   "keywords": [

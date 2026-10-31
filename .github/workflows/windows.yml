@@ -44,10 +44,10 @@ jobs:
 
       - name: Verify artifact
         run: |
-          Get-Item Miyu-1.0.0-portable.exe | Select-Object Name,Length
+          Get-Item ..\dist\Miyu-1.0.0-portable.exe | Select-Object Name,Length
 
       - uses: actions/upload-artifact@v4
         with:
           name: miyu-windows-portable
-          path: Miyu-1.0.0-portable.exe
+          path: dist/Miyu-1.0.0-portable.exe
           retention-days: 30

@@ -232,34 +232,34 @@
     },
 
     async deleteRoom(roomId) {
+      const ids = new Set();
       if (mode !== 'fallback') {
         try {
           const db = await openDB();
           const tx = db.transaction(['events', 'blobs'], 'readwrite');
-          const idx = tx.objectStore('events').index('room');
+          const evStore = tx.objectStore('events');
+          const idx = evStore.index('room');
           const range = IDBKeyRange.bound([account, roomId, 0], [account, roomId, Infinity]);
-          const req = idx.openCursor(range);
-          req.onsuccess = () => {
-            const c = req.result;
-            if (c) { c.delete(); c.continue(); }
-          };
-          const b = tx.objectStore('blobs').openCursor();
-          b.onsuccess = () => {
-            const c = b.result;
-            if (c) {
-              if (String(c.value.k).startsWith(`${account}:`)) c.delete();
-              c.continue();
-            }
-          };
+          const rows = await new Promise((resolve, reject) => {
+            const req = idx.getAll(range);
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error || new Error('read failed'));
+          });
+          const blobStore = tx.objectStore('blobs');
+          for (const rec of rows) {
+            ids.add(rec.id);
+            evStore.delete(rec.k);
+            blobStore.delete(`${account}:${rec.id}`);
+          }
           await txDone(tx);
         } catch { mode = 'fallback'; }
       }
+      const fb = readFallbackEvents(roomId);
+      for (const rec of fb) ids.add(rec.id);
       try { localStorage.removeItem(fallbackEventsKey(roomId)); } catch { /* 忽略 */ }
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(`miyu.bl.${account}.`)) {
-          // blobs are keyed by event id; room association is lost after events are gone
-        }
+      for (const id of ids) {
+        memBlobs.delete(`${account}:${id}`);
+        try { localStorage.removeItem(fallbackBlobKey(id)); } catch { /* 忽略 */ }
       }
     },
 

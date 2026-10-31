@@ -25,7 +25,8 @@ try {
   }
 } catch { /* 使用默认用户目录 */ }
 
-const isDev = !app.isPackaged;
+const devWebIndex = path.join(__dirname, '..', 'app', 'www', 'index.html');
+const isDev = !app.isPackaged || fs.existsSync(devWebIndex);
 const DEFAULT_PORT = 7777;
 const MAX_TITLE = 90;
 const MAX_BODY = 260;
@@ -140,8 +141,9 @@ function iconPath() {
 }
 
 function webIndexPath() {
-  if (app.isPackaged) return path.join(process.resourcesPath, 'www', 'index.html');
-  return path.join(__dirname, '..', 'app', 'www', 'index.html');
+  const packagedIndex = path.join(process.resourcesPath, 'www', 'index.html');
+  if (fs.existsSync(packagedIndex)) return packagedIndex;
+  return devWebIndex;
 }
 
 function relayBundlePath() {
