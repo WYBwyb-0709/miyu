@@ -1,0 +1,95 @@
+name: Android APK
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+  workflow_dispatch: {}
+
+env:
+  JAVA_HOME: D:\a\home\java
+  ANDROID_HOME: D:\a\android\android-sdk
+  GRADLE_USER_HOME: D:\a\gradle
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: android
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install root deps + vendor bundle
+        run: |
+          npm ci
+          npm run vendor
+          npx cap sync android
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'huawei'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 36
+          build-tools: 36.0.0
+
+      - name: Build debug APK
+        run: .\gradlew.bat assembleDebug --no-daemon
+
+      - name: Strip debug build config (keep clean)
+        run: |
+          Remove-Item -Recurse -Force dist/win-unpacked -ErrorAction SilentlyContinue
+          # verify
+          Get-Item app\build\outputs\apk\debug\app-debug.apk | Select-String .*
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Build signed release (optional)
+        if: github.event_name == 'push' || github.ref == 'refs/heads/master'
+        env:
+          STORE_FILE: release.keystore
+        run: |
+          # Decode keystore from secret if provided
+          if ($env:ANDROID_KEYSTORE_BASE64) {
+            [IO.File]::WriteAllBytes("android/$env:STORE_FILE", [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+            'storeFile=release.keystore' | Out-File -FilePath android/keystore.properties -Encoding ascii
+            "storePassword=$env:ANDROID_KEYSTORE_PASSWORD" | Add-Content android/keystore.properties
+            "keyAlias=$env:ANDROID_KEY_ALIAS" | Add-Content android/keystore.properties
+            "keyPassword=$env:ANDROID_KEY_PASSWORD" | Add-Content android/keystore.properties
+          }
+          .\gradlew.bat assembleRelease --no-daemon
+        continue-on-error: true
+
+      - if: hashFiles('android/release.keystore') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 14

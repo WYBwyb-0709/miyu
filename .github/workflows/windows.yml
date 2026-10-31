@@ -1,0 +1,53 @@
+name: Windows Portable
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: desktop
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps + vendor bundle + relay bundle
+        run: |
+          npm ci
+          npm run --prefix .. vendor
+          npm run relay
+
+      - name: Sync web assets into Electron extraResources
+        run: |
+          # app/www is already referenced via extraResources in package.json
+
+      - name: Build portable EXE
+        run: npm run dist
+
+      - name: Verify artifact
+        run: |
+          Get-Item Miyu-1.0.0-portable.exe | Select-Object Name,Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: miyu-windows-portable
+          path: Miyu-1.0.0-portable.exe
+          retention-days: 30
