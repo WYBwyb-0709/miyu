@@ -1,0 +1,60 @@
+{
+  "name": "miyu-desktop",
+  "productName": "密语",
+  "version": "1.0.0",
+  "description": "密语 · 去中心化私密聊天桌面端（内置本机 Nostr 中继）",
+  "main": "main.js",
+  "author": "Miyu",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "relay": "node build-relay.mjs",
+    "start": "npm run relay && electron .",
+    "pack": "npm run relay && electron-builder --dir",
+    "dist": "npm run relay && electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.miyu.desktop",
+    "productName": "密语",
+    "copyright": "Copyright © 2026 Miyu",
+    "asar": true,
+    "compression": "maximum",
+    "directories": {
+      "output": "../dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "relay-bundle.cjs",
+      "build/icon.png",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../app/www",
+        "to": "www"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Miyu-${version}-portable.exe"
+    },
+    "portable": {
+      "artifactName": "Miyu-${version}-portable.exe",
+      "requestExecutionLevel": "user"
+    }
+  }
+}

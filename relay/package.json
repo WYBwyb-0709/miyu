@@ -1,0 +1,27 @@
+{
+  "name": "nfls-nostr-relay",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A production-quality Nostr relay implementing NIP-01, NIP-09, NIP-11, NIP-40, NIP-42 and NIP-45",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test.js"
+  },
+  "keywords": [
+    "nostr",
+    "relay",
+    "websocket",
+    "sqlite"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "nostr-tools": "^2.17.0",
+    "ws": "^8.18.3"
+  }
+}

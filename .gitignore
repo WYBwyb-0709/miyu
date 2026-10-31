@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+desktop/node_modules/
+relay/node_modules/
+
+# Build output
+dist/
+desktop/relay-bundle.cjs
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# Local data and logs
+relay/data/
+MiyuData/
+*.log
+hs_err_pid*
+npm-debug.log*
+
+# Signing material — never commit these
+android/keystore.properties
+android/*.keystore
+android/*.jks
+*.p12
+*.pfx
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

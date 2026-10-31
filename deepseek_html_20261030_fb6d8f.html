@@ -1,0 +1,4381 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-font="normal" data-accent="wechat">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ededed">
+<title>密语 · 安全通讯</title>
+<style>
+:root{
+  /* ── 微信风格基础变量 ── */
+  --bg:#ededed;
+  --bg-side:#ffffff;
+  --bg-raise:#ffffff;
+  --bg-hover:#f5f5f5;
+  --bg-input:#ffffff;
+  --line:rgba(0,0,0,.06);
+  --line-strong:rgba(0,0,0,.12);
+
+  /* 主题色：由 html[data-accent] 覆盖 */
+  --accent-rgb:7,193,96;
+  --accent:#07c160;
+  --accent-deep:#059050;
+  --accent-soft:rgba(7,193,96,.10);
+  --accent-line:rgba(7,193,96,.32);
+  --accent-hover:#10b160;
+  --on-accent:#ffffff;
+
+  --text:#1a1a1a;
+  --text-2:#5a5a5a;
+  --text-3:#888888;
+
+  /* 气泡：微信经典配色 */
+  --bubble-mine:#95ec69;
+  --bubble-mine-text:#1a1a1a;
+  --bubble-theirs:#ffffff;
+
+  --danger:#fa5151;
+  --warning:#fab702;
+  --success:var(--accent);
+
+  /* 微信大圆角 */
+  --r-lg:16px;
+  --r-md:8px;
+  --r-sm:4px;
+
+  --fs-ui:15px;
+  --fs-name:16px;
+  --fs-msg:16px;
+  --fs-meta:11px;
+  --fs-title:17px;
+  --fs-small:13px;
+
+  --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --font-mono:"SF Mono","Cascadia Code","JetBrains Mono",Consolas,monospace;
+}
+
+/* ── 强调色预设（保留紫色等，默认微信绿） ── */
+html[data-accent="wechat"]{
+  --accent-rgb:7,193,96; --accent:#07c160; --accent-deep:#059050;
+  --accent-hover:#10b160; --on-accent:#ffffff;
+  --bubble-mine:#95ec69; --bubble-mine-text:#1a1a1a;
+}
+html[data-accent="violet"]{
+  --accent-rgb:140,92,240; --accent:#8c5cf0; --accent-deep:#6a3fd0;
+  --accent-hover:#a078f5; --on-accent:#ffffff;
+  --bubble-mine:#d9ccff; --bubble-mine-text:#1a1a1a;
+}
+html[data-accent="ice"]{
+  --accent-rgb:94,138,245; --accent:#5e8af5; --accent-deep:#3a58b8;
+  --accent-hover:#7ea2ff; --on-accent:#ffffff;
+  --bubble-mine:#c8d8ff; --bubble-mine-text:#1a1a1a;
+}
+html[data-accent="cyan"]{
+  --accent-rgb:34,180,190; --accent:#22b4be; --accent-deep:#17858d;
+  --accent-hover:#3dccd6; --on-accent:#ffffff;
+  --bubble-mine:#b8f0f4; --bubble-mine-text:#1a1a1a;
+}
+html[data-accent="lime"]{
+  --accent-rgb:140,180,40; --accent:#8cb428; --accent-deep:#6a8a18;
+  --accent-hover:#a3cc3d; --on-accent:#ffffff;
+  --bubble-mine:#dcefc0; --bubble-mine-text:#1a1a1a;
+}
+html[data-accent="amber"]{
+  --accent-rgb:230,160,40; --accent:#e6a028; --accent-deep:#b87a14;
+  --accent-hover:#f5b74a; --on-accent:#ffffff;
+  --bubble-mine:#ffecb8; --bubble-mine-text:#1a1a1a;
+}
+html[data-accent="rose"]{
+  --accent-rgb:240,100,140; --accent:#f0648c; --accent-deep:#c04068;
+  --accent-hover:#ff80a8; --on-accent:#ffffff;
+  --bubble-mine:#ffd0e0; --bubble-mine-text:#1a1a1a;
+}
+
+html[data-font="small"]{
+  --fs-ui:13px;--fs-name:14px;--fs-msg:14px;--fs-meta:10px;--fs-title:15px;--fs-small:12px;
+}
+html[data-font="large"]{
+  --fs-ui:16px;--fs-name:17px;--fs-msg:18px;--fs-meta:12px;--fs-title:18px;--fs-small:14px;
+}
+html[data-font="xlarge"]{
+  --fs-ui:18px;--fs-name:19px;--fs-msg:20px;--fs-meta:13px;--fs-title:20px;--fs-small:15px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--font-ui);
+  font-size:var(--fs-ui);
+  color:var(--text);
+  background:var(--bg);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{
+  outline:2px solid var(--accent);outline-offset:1px;
+}
+.hidden{display:none !important}
+
+/* ── 应用框架：微信式左右分栏，列表白底，聊天区灰底 ── */
+#app{
+  position:relative;display:flex;height:100dvh;width:100%;
+  max-width:1280px;margin:0 auto;background:var(--bg);
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ── 侧栏：微信聊天列表 ── */
+#sidebar{
+  width:320px;flex-shrink:0;display:flex;flex-direction:column;
+  background:var(--bg-side);border-right:1px solid var(--line);
+  min-width:0;
+}
+.brand{
+  display:flex;align-items:center;gap:10px;padding:16px 16px 10px;
+  background:var(--bg-side);
+}
+.brand-mark{
+  width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+  background:var(--accent);color:var(--on-accent);font-size:18px;font-weight:700;flex-shrink:0;
+}
+.brand-text{min-width:0;flex:1}
+.brand-text .t1{font-size:17px;font-weight:600;letter-spacing:.02em;line-height:1.2;color:var(--text)}
+.brand-text .t2{font-size:10px;letter-spacing:.08em;color:var(--text-3);margin-top:2px;font-family:var(--font-mono)}
+.brand-add{
+  width:32px;height:32px;border-radius:50%;border:none;
+  background:transparent;color:var(--text-2);font-size:22px;cursor:pointer;
+  display:grid;place-items:center;flex-shrink:0;
+  transition:background .15s,color .15s;
+}
+.brand-add:hover{background:var(--bg-hover);color:var(--accent)}
+
+/* 操作区：加入群聊 + 发起私聊 + 设置 */
+.side-actions{display:flex;gap:8px;padding:0 14px 12px}
+.side-btn{
+  flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:5px;
+  padding:9px 6px;border-radius:8px;border:1px solid var(--line);
+  background:var(--bg-hover);color:var(--text-2);cursor:pointer;
+  font-size:12px;font-weight:500;white-space:nowrap;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.side-btn:hover{background:var(--bg-hover);border-color:var(--line-strong);color:var(--text)}
+.side-btn.primary{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent)}
+.side-btn.primary:hover{background:rgba(var(--accent-rgb),.18)}
+
+.room-list{flex:1;overflow-y:auto;padding:0;min-height:0}
+.room-list::-webkit-scrollbar{width:3px}
+.room-list::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:3px}
+
+.room-item{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  cursor:pointer;position:relative;transition:background .15s;
+  border-bottom:1px solid var(--line);
+}
+.room-item:hover{background:var(--bg-hover)}
+.room-item.active{background:var(--bg-hover)}
+.room-item.active::before{
+  content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:3px;height:20px;border-radius:0 2px 2px 0;background:var(--accent);
+}
+.room-avatar{
+  width:44px;height:44px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;
+  background:linear-gradient(135deg,#e0e0e0,#c8c8c8);color:#666;
+  font-size:17px;font-weight:600;overflow:hidden;
+}
+.room-avatar img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+.room-item.active .room-avatar{box-shadow:0 0 0 2px var(--accent-line)}
+.room-meta{flex:1;min-width:0}
+.room-meta .name{font-size:var(--fs-name);font-weight:500;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.room-meta .sub{font-size:var(--fs-small);color:var(--text-3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.room-side{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.room-time{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.room-badge{
+  min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center;
+  background:rgba(0,0,0,.06);color:var(--text-3);font-size:11px;font-weight:600;
+}
+.room-badge.unread{background:var(--danger);color:#fff}
+
+.side-footer{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;
+  border-top:1px solid var(--line);background:var(--bg-side);
+}
+.me-avatar{
+  width:36px;height:36px;border-radius:50%;flex-shrink:0;overflow:hidden;
+  background:linear-gradient(135deg,#e0e0e0,#c8c8c8);display:grid;place-items:center;
+  color:#666;font-size:14px;font-weight:600;
+}
+.me-avatar img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+.me-meta{flex:1;min-width:0}
+.me-meta .n{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.me-meta .p{font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{
+  width:32px;height:32px;border-radius:50%;border:none;background:transparent;
+  color:var(--text-3);font-size:16px;cursor:pointer;display:grid;place-items:center;
+  transition:background .15s,color .15s;
+}
+.icon-btn:hover{background:var(--bg-hover);color:var(--text)}
+
+/* ── 主区：微信聊天窗口 ── */
+#main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;background:var(--bg)}
+.topbar{
+  display:flex;align-items:center;gap:10px;padding:0 16px;height:56px;flex-shrink:0;
+  border-bottom:1px solid var(--line);background:var(--bg-side);
+}
+#mobileToggle{
+  display:none;width:34px;height:34px;border-radius:8px;border:none;
+  background:transparent;color:var(--text-2);font-size:20px;cursor:pointer;flex-shrink:0;
+}
+.topbar-title{min-width:0;flex:1}
+.topbar-title .t{
+  font-size:var(--fs-title);font-weight:500;line-height:1.25;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:flex;align-items:center;gap:8px;
+}
+.topbar-title .s{
+  font-size:var(--fs-meta);color:var(--text-3);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.status-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--accent);
+  flex-shrink:0;
+}
+.status-dot.offline{background:var(--text-3)}
+.topbar-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.topbar-btn{
+  height:32px;padding:0 10px;border-radius:6px;border:none;background:transparent;
+  color:var(--text-2);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;
+  transition:background .15s,color .15s;
+}
+.topbar-btn:hover{background:var(--bg-hover);color:var(--text)}
+
+#messages{
+  flex:1;overflow-y:auto;padding:16px 20px 10px;
+  display:flex;flex-direction:column;gap:2px;scroll-behavior:smooth;min-height:0;
+  background:var(--bg);
+}
+#messages::-webkit-scrollbar{width:4px}
+#messages::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px}
+
+.msg-system{
+  align-self:center;max-width:88%;text-align:center;
+  font-size:11px;color:var(--text-3);line-height:1.5;
+  padding:4px 12px;border-radius:4px;background:rgba(0,0,0,.04);
+  margin:6px 0;
+}
+.msg-system.warn{color:var(--warning);background:rgba(250,183,2,.08)}
+.msg-system.recall{background:transparent;padding:4px 8px;margin:2px 0;font-size:11px}
+.msg-date{
+  align-self:center;font-size:11px;color:var(--text-3);
+  padding:6px 10px;margin:4px 0 2px;letter-spacing:.02em;
+}
+
+/* ── 消息组：微信风格 ── */
+.msg-group{
+  display:flex;gap:10px;align-items:flex-start;max-width:min(78%,680px);
+  align-self:flex-start;animation:msgIn .12s ease-out;position:relative;
+  margin:2px 0;
+}
+.msg-group.mine{flex-direction:row-reverse;align-self:flex-end}
+.msg-group.no-avatar{gap:0}
+@keyframes msgIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+.msg-avatar{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;overflow:hidden;
+  background:linear-gradient(135deg,#e0e0e0,#c8c8c8);
+  display:grid;place-items:center;color:#666;font-size:14px;font-weight:600;
+  margin-top:2px;
+}
+.msg-avatar img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+.msg-avatar.spacer{visibility:hidden}
+.msg-body{display:flex;flex-direction:column;min-width:0;max-width:100%}
+.msg-group.mine .msg-body{align-items:flex-end}
+.msg-sender{
+  font-size:11px;color:var(--text-3);line-height:1.3;
+  margin:0 2px 4px;padding:0;
+}
+.msg-bubble{
+  padding:10px 14px;border-radius:var(--r-lg);font-size:var(--fs-msg);line-height:1.56;
+  word-break:break-word;white-space:pre-wrap;position:relative;
+  background:var(--bubble-theirs);border:1px solid rgba(0,0,0,.04);
+  max-width:100%;color:var(--text);
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+}
+/* 微信尖角：自己右下，对方左下 */
+.msg-group.mine .msg-bubble{
+  background:var(--bubble-mine);color:var(--bubble-mine-text);
+  border-color:transparent;border-bottom-right-radius:2px;
+}
+.msg-group.theirs .msg-bubble{
+  border-bottom-left-radius:2px;
+}
+.msg-group.mine .msg-bubble a{color:#1a5a1a}
+.msg-time{
+  font-size:10px;color:var(--text-3);margin:4px 4px 0;
+  font-variant-numeric:tabular-nums;
+}
+.msg-status{
+  font-size:10px;margin-top:2px;color:var(--text-3);
+}
+.msg-status.fail{color:var(--danger)}
+.msg-status.pending{color:var(--text-3)}
+
+.msg-menu-btn{
+  position:absolute;top:50%;transform:translateY(-50%);left:-28px;
+  width:24px;height:24px;border:none;border-radius:50%;background:rgba(0,0,0,.06);
+  color:var(--text-3);font-size:13px;cursor:pointer;opacity:0;display:grid;place-items:center;
+  transition:opacity .12s,background .12s;
+}
+.msg-group.mine:hover .msg-menu-btn{opacity:1}
+.msg-menu-btn:hover{background:rgba(0,0,0,.12);color:var(--text)}
+
+.file-card{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:8px;background:rgba(0,0,0,.04);border:1px solid var(--line);
+  min-width:220px;max-width:100%;
+}
+.file-icon{
+  width:36px;height:36px;flex-shrink:0;display:grid;place-items:center;border-radius:8px;
+  background:var(--accent-soft);color:var(--accent);font-size:15px;
+}
+.file-info{flex:1;min-width:0}
+.file-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.file-size{font-size:11px;color:var(--text-3);margin-top:3px}
+.file-dl{
+  width:30px;height:30px;display:grid;place-items:center;border-radius:6px;flex-shrink:0;
+  background:var(--accent-soft);color:var(--accent);text-decoration:none;font-size:14px;
+}
+.file-dl:hover{background:rgba(var(--accent-rgb),.2)}
+.file-progress{height:3px;border-radius:3px;background:rgba(0,0,0,.08);margin-top:7px;overflow:hidden}
+.file-progress-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .18s linear}
+.file-transfer{font-size:10px;color:var(--text-3);margin-top:5px;line-height:1.4}
+.file-transfer.wait{color:var(--warning)}
+.file-transfer.fail{color:var(--danger)}
+.file-transfer.ok{color:var(--accent)}
+.file-retry{
+  padding:5px 9px;border-radius:6px;border:1px solid var(--accent-line);
+  background:var(--accent-soft);color:var(--accent);font-size:11px;cursor:pointer;flex-shrink:0;
+}
+.file-retry:hover{background:rgba(var(--accent-rgb),.2)}
+.file-preview{max-width:240px;border-radius:8px;overflow:hidden;border:1px solid var(--line);margin-bottom:5px}
+.file-preview img{display:block;width:100%;height:auto}
+
+/* ── 输入区：微信式 ── */
+#composer{padding:8px 16px 14px;flex-shrink:0;background:var(--bg)}
+.composer-box{
+  display:flex;align-items:flex-end;gap:6px;padding:6px 8px 6px 12px;
+  border-radius:var(--r-md);background:var(--bg-input);border:1px solid var(--line);
+  transition:border-color .15s;
+}
+.composer-box:focus-within{border-color:var(--accent-line)}
+#msgInput{
+  flex:1;background:transparent;border:none;outline:none;color:var(--text);
+  font-family:var(--font-ui);font-size:var(--fs-msg);line-height:1.5;
+  resize:none;padding:7px 0;max-height:120px;min-height:26px;
+}
+#msgInput::placeholder{color:var(--text-3)}
+.send-btn,.file-btn{
+  width:34px;height:34px;flex-shrink:0;display:grid;place-items:center;
+  border:none;border-radius:50%;cursor:pointer;transition:background .15s,opacity .15s,transform .1s;
+}
+.send-btn{
+  background:var(--accent);color:var(--on-accent);font-size:17px;font-weight:700;
+}
+.send-btn:hover{background:var(--accent-hover)}
+.send-btn:active{transform:scale(.94)}
+.send-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.file-btn{background:transparent;color:var(--text-3);font-size:20px}
+.file-btn:hover{background:var(--bg-hover);color:var(--text)}
+
+/* ── 遮罩 / 弹窗：微信简洁风格 ── */
+.overlay{
+  position:fixed;inset:0;z-index:200;display:flex;align-items:flex-start;justify-content:center;
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  background:rgba(0,0,0,.5);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  padding:max(20px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom));
+}
+.overlay.hidden{display:none}
+.modal{
+  width:100%;max-width:420px;flex-shrink:0;margin:auto;
+  background:var(--bg-raise);border-radius:12px;
+  padding:24px 20px;position:relative;
+  box-shadow:0 12px 40px rgba(0,0,0,.18);
+}
+.modal.wide{max-width:480px}
+.modal h3{font-size:18px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.modal .desc{font-size:13px;color:var(--text-2);line-height:1.65;margin-bottom:18px}
+.modal .section-label{
+  font-size:10px;letter-spacing:.1em;color:var(--text-3);font-weight:600;
+  margin:20px 0 8px;text-transform:uppercase;font-family:var(--font-mono);
+}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:var(--text-2);margin-bottom:6px;font-weight:500}
+.field input,.field textarea,.field select{
+  width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;color:var(--text);font-family:var(--font-ui);font-size:15px;
+  outline:none;transition:border-color .15s;resize:vertical;
+}
+.field textarea{font-family:var(--font-mono);font-size:12px;line-height:1.5}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent-line)}
+.field input::placeholder,.field textarea::placeholder{color:var(--text-3)}
+.field .hint{font-size:11px;color:var(--text-3);line-height:1.55;margin-top:6px}
+.modal-actions{display:flex;gap:10px;margin-top:20px}
+.btn-ghost,.btn-primary{
+  flex:1;padding:10px 12px;border-radius:8px;cursor:pointer;
+  font-size:15px;font-weight:500;transition:background .15s,opacity .15s;
+}
+.btn-ghost{background:transparent;border:1px solid var(--line-strong);color:var(--text-2)}
+.btn-ghost:hover{background:var(--bg-hover);color:var(--text)}
+.btn-primary{background:var(--accent);border:1px solid transparent;color:var(--on-accent)}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-danger{background:transparent;border:1px solid rgba(250,81,81,.3);color:var(--danger)}
+.btn-danger:hover{background:rgba(250,81,81,.06)}
+.modal-error{font-size:12px;color:var(--danger);margin-top:8px;min-height:16px;line-height:1.5}
+.warning-text{font-size:11px;color:var(--danger);margin-top:6px;line-height:1.55}
+
+.settings-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.settings-row:last-child{border-bottom:none}
+.settings-row .grow{flex:1;min-width:0}
+.settings-row .title{font-size:15px;font-weight:500;color:var(--text)}
+.settings-row .desc{font-size:11px;color:var(--text-3);margin-top:3px;line-height:1.5}
+.settings-row select{
+  background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);
+  padding:7px 9px;font-size:13px;outline:none;max-width:150px;
+}
+.switch{position:relative;width:42px;height:24px;flex-shrink:0}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .track{
+  position:absolute;inset:0;border-radius:12px;background:rgba(0,0,0,.12);
+  transition:background .18s;cursor:pointer;
+}
+.switch .track::after{
+  content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;
+  background:#fff;transition:transform .18s;box-shadow:0 1px 3px rgba(0,0,0,.15);
+}
+.switch input:checked + .track{background:var(--accent)}
+.switch input:checked + .track::after{transform:translateX(18px)}
+
+/* 强调色选择（微信风格圆点） */
+.swatches{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:180px}
+.swatch{
+  width:24px;height:24px;padding:0;cursor:pointer;border-radius:50%;
+  border:2px solid transparent;background:var(--sw);
+  transition:transform .12s;
+}
+.swatch:hover{transform:scale(1.1)}
+.swatch[data-accent="wechat"]{--sw:#07c160}
+.swatch[data-accent="violet"]{--sw:#8c5cf0}
+.swatch[data-accent="ice"]{--sw:#5e8af5}
+.swatch[data-accent="cyan"]{--sw:#22b4be}
+.swatch[data-accent="lime"]{--sw:#8cb428}
+.swatch[data-accent="amber"]{--sw:#e6a028}
+.swatch[data-accent="rose"]{--sw:#f0648c}
+.swatch.active{border-color:var(--text);box-shadow:0 0 0 2px #fff inset}
+
+.profile-row{display:flex;align-items:center;gap:14px;padding:2px 0 4px}
+.profile-avatar{
+  width:64px;height:64px;border-radius:50%;flex-shrink:0;overflow:hidden;
+  background:linear-gradient(135deg,#e0e0e0,#c8c8c8);display:grid;place-items:center;
+  color:#666;font-size:22px;font-weight:600;
+}
+.profile-avatar img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+.profile-info{flex:1;min-width:0}
+.profile-info .n{font-size:17px;font-weight:600;color:var(--text)}
+.profile-info .p{font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-top:4px;word-break:break-all;line-height:1.45}
+.profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.mini-btn{
+  padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:transparent;
+  color:var(--text-2);font-size:12px;cursor:pointer;
+}
+.mini-btn:hover{background:var(--bg-hover);color:var(--text)}
+.mini-btn.green{color:var(--accent);border-color:var(--accent-line);background:var(--accent-soft)}
+
+#sidebarBackdrop{
+  display:none;position:fixed;inset:0;z-index:140;background:rgba(0,0,0,.4);
+}
+#sidebarBackdrop.show{display:block}
+
+/* ── 右键菜单 ── */
+.ctx-menu{
+  position:fixed;z-index:320;min-width:130px;padding:5px;
+  background:var(--bg-raise);border-radius:8px;
+  box-shadow:0 8px 30px rgba(0,0,0,.15);border:1px solid var(--line);
+}
+.ctx-menu button{
+  display:block;width:100%;text-align:left;padding:9px 12px;border:none;border-radius:5px;
+  background:transparent;color:var(--text-2);font-size:14px;cursor:pointer;
+}
+.ctx-menu button:hover{background:var(--bg-hover);color:var(--text)}
+.ctx-menu button.danger{color:var(--danger)}
+.ctx-menu button:disabled{opacity:.35;cursor:not-allowed}
+
+#toast{
+  position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(8px);
+  z-index:400;max-width:min(90vw,440px);padding:10px 16px;border-radius:8px;
+  background:rgba(0,0,0,.75);color:#fff;
+  font-size:13px;line-height:1.5;text-align:center;
+  box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:900px){
+  #sidebar{
+    position:fixed;left:0;top:0;bottom:0;z-index:150;width:min(86vw,340px);
+    transform:translateX(-100%);transition:transform .25s cubic-bezier(.32,.72,.28,1);
+    border-right:none;box-shadow:4px 0 24px rgba(0,0,0,.1);
+  }
+  #sidebar.mobile-open{transform:translateX(0)}
+  #mobileToggle{display:grid;place-items:center}
+  .topbar{height:52px;padding:0 12px}
+  #messages{padding:12px 12px 8px}
+  .msg-group{max-width:86%}
+  #composer{padding:6px 10px 12px}
+  .msg-menu-btn{left:auto;right:-26px}
+  .overlay{padding-left:12px;padding-right:12px}
+  .modal{padding:20px 16px}
+}
+@media (max-width:480px){
+  .msg-group{max-width:90%}
+  .msg-avatar{width:36px;height:36px}
+  .file-card{min-width:180px}
+  .modal-actions{flex-direction:column}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">密</div>
+      <div class="brand-text">
+        <div class="t1">密语</div>
+        <div class="t2">SECURE MESSENGER</div>
+      </div>
+      <button class="brand-add" id="btnNewGroup" title="新建群聊">＋</button>
+    </div>
+    <div class="side-actions">
+      <button class="side-btn" id="btnJoinGroup">加入群聊</button>
+      <button class="side-btn primary" id="btnNewDM">发起私聊</button>
+      <button class="side-btn" id="btnSettings">设置</button>
+    </div>
+    <div class="room-list" id="roomList"></div>
+    <div class="side-footer">
+      <div class="me-avatar" id="sideMeAvatar">—</div>
+      <div class="me-meta">
+        <div class="n" id="sideMeName">未登录</div>
+        <div class="p" id="sideMePub">—</div>
+      </div>
+      <button class="icon-btn" id="btnSettingsBottom" title="设置">⚙</button>
+    </div>
+  </aside>
+  <div id="sidebarBackdrop"></div>
+
+  <main id="main">
+    <header class="topbar">
+      <button id="mobileToggle" aria-label="打开会话列表">☰</button>
+      <div class="topbar-title">
+        <div class="t"><span id="roomTitle">选择一个会话</span><span class="status-dot offline" id="connDot"></span></div>
+        <div class="s" id="roomSub">在大厅或私聊中开始聊天</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="topbar-btn" id="btnSettingsTop" title="设置">设置</button>
+      </div>
+    </header>
+    <div id="messages"></div>
+    <div id="composer">
+      <div class="composer-box">
+        <textarea id="msgInput" rows="1" placeholder="输入消息…" disabled></textarea>
+        <input type="file" id="fileInput" style="display:none" multiple>
+        <button class="file-btn" id="fileBtn" title="发送文件">＋</button>
+        <button class="send-btn" id="sendBtn" disabled title="发送">↑</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 认证 -->
+<div class="overlay" id="authOverlay">
+  <div class="modal" id="authCreateView">
+    <h3>创建账户</h3>
+    <p class="desc">用户名是你在会话中的显示名称，密码用于在本设备加密身份密钥。不需要手机号，换设备时导入凭证即可恢复。</p>
+    <div class="field">
+      <label>用户名</label>
+      <input id="createUsername" maxlength="24" placeholder="例如：小林" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input id="createPassword" type="password" placeholder="至少 6 位">
+    </div>
+    <div class="field">
+      <label>确认密码</label>
+      <input id="createPasswordConfirm" type="password" placeholder="再次输入">
+    </div>
+    <div class="modal-error" id="createError"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnGotoImport">导入账户</button>
+      <button class="btn-primary" id="btnCreateSubmit">创建并进入</button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="authUnlockView">
+    <h3>解锁账户</h3>
+    <p class="desc" id="unlockDesc">输入密码解锁本设备上保存的账户。</p>
+    <div class="field">
+      <label>密码</label>
+      <input id="unlockPassword" type="password" placeholder="账户密码">
+    </div>
+    <div class="modal-error" id="unlockError"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnGotoImportFromUnlock">导入其他账户</button>
+      <button class="btn-primary" id="btnUnlockSubmit">解锁</button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="authImportView">
+    <h3>导入账户</h3>
+    <p class="desc">粘贴其他设备导出的 ncryptsec 字符串，输入密码和显示名称即可恢复身份。</p>
+    <div class="field">
+      <label>ncryptsec 凭证</label>
+      <textarea id="importNcryptsec" rows="3" placeholder="ncryptsec1..." autocomplete="off"></textarea>
+    </div>
+    <div class="field">
+      <label>显示名称</label>
+      <input id="importUsername" maxlength="24" placeholder="恢复后的名称" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input id="importPassword" type="password" placeholder="该账户的密码">
+    </div>
+    <div class="modal-error" id="importError"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnGotoCreate">返回创建</button>
+      <button class="btn-primary" id="btnImportSubmit">导入并登录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="overlay hidden" id="settingsOverlay">
+  <div class="modal wide">
+    <h3>设置</h3>
+    <p class="desc">资料、外观与数据存储</p>
+
+    <div class="section-label">我的资料</div>
+    <div class="profile-row">
+      <div class="profile-avatar" id="settingsAvatar">密</div>
+      <div class="profile-info">
+        <div class="n" id="settingsName">—</div>
+        <div class="p" id="settingsPub">—</div>
+      </div>
+    </div>
+    <div class="profile-actions">
+      <input type="file" id="avatarInput" accept="image/*" style="display:none">
+      <button class="mini-btn green" id="btnAvatarUpload">更换头像</button>
+      <button class="mini-btn" id="btnAvatarRemove">移除头像</button>
+      <button class="mini-btn" id="btnCopyMyPubkey">复制公钥</button>
+    </div>
+    <div class="field hidden" style="margin-top:12px">
+      <textarea id="myPubkeyDisplay" rows="2" readonly></textarea>
+    </div>
+
+    <div class="section-label">外观</div>
+    <div class="settings-row">
+      <div class="grow">
+        <div class="title">主题色</div>
+        <div class="desc">默认微信绿，可选其他强调色</div>
+      </div>
+      <div class="swatches" id="accentSwatches">
+        <button class="swatch" data-accent="wechat" title="微信绿"></button>
+        <button class="swatch" data-accent="violet" title="紫罗兰"></button>
+        <button class="swatch" data-accent="ice" title="冰蓝"></button>
+        <button class="swatch" data-accent="cyan" title="青碧"></button>
+        <button class="swatch" data-accent="lime" title="黄绿"></button>
+        <button class="swatch" data-accent="amber" title="琥珀"></button>
+        <button class="swatch" data-accent="rose" title="绯红"></button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <div class="grow">
+        <div class="title">字号</div>
+        <div class="desc">调整消息和界面文字大小</div>
+      </div>
+      <select id="fontSizeSelect">
+        <option value="small">小</option>
+        <option value="normal">标准</option>
+        <option value="large">大</option>
+        <option value="xlarge">特大</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <div class="grow">
+        <div class="title">群聊显示头像</div>
+        <div class="desc">大厅始终不显示头像</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="groupAvatarToggle"><span class="track"></span></label>
+    </div>
+    <div class="settings-row">
+      <div class="grow">
+        <div class="title">私聊显示头像</div>
+        <div class="desc">默认开启</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="dmAvatarToggle"><span class="track"></span></label>
+    </div>
+    <div class="settings-row">
+      <div class="grow">
+        <div class="title">随消息共享头像</div>
+        <div class="desc">对方需同样开启才能看到你的头像</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="shareAvatarToggle"><span class="track"></span></label>
+    </div>
+
+    <div class="section-label">聊天</div>
+    <div class="settings-row">
+      <div class="grow">
+        <div class="title">发送键</div>
+        <div class="desc">Enter 换行或发送</div>
+      </div>
+      <select id="sendKeySelect">
+        <option value="ctrl">Ctrl+Enter</option>
+        <option value="enter">Enter</option>
+        <option value="both">两者皆可</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <div class="grow">
+        <div class="title">压缩图片</div>
+        <div class="desc">JPEG 重新编码以节省流量</div>
+      </div>
+      <select id="imageCompressSelect">
+        <option value="off">关闭</option>
+        <option value="on">开启</option>
+      </select>
+    </div>
+
+    <div class="section-label">数据与存储</div>
+    <div class="settings-row">
+      <div class="grow">
+        <div class="title">APP DATA 文件夹</div>
+        <div class="desc" id="appDataStatus">未连接。头像与资料同时保存在浏览器本地。</div>
+      </div>
+    </div>
+    <div class="profile-actions" style="margin-top:0">
+      <button class="mini-btn green" id="btnPickAppData">选择文件夹</button>
+      <button class="mini-btn" id="btnSyncAppData">立即同步</button>
+      <button class="mini-btn" id="btnExportAppData">导出资料</button>
+    </div>
+    <p class="field hint" style="margin-top:8px;color:var(--text-3);font-size:11px;line-height:1.6">
+      浏览器不允许网页直接写入所在目录。首次使用时请选择本 HTML 所在的文件夹，程序会在其中创建 <b>APP DATA</b> 并保存头像与 profile.json。<br>
+      在 <b>file://</b> 协议下，Chrome 可能限制文件夹访问，此时请使用“导出资料”按钮，手动将文件放入 HTML 同目录的 APP DATA 文件夹。
+    </p>
+    <div class="settings-row" style="margin-top:10px">
+      <div class="grow">
+        <div class="title">本地存储</div>
+        <div class="desc">消息历史与已接收文件</div>
+      </div>
+      <span class="mini-btn" style="cursor:default" id="storageBackend">IndexedDB</span>
+    </div>
+    <div class="settings-row">
+      <div class="grow">
+        <div class="title">账户状态</div>
+        <div class="desc" id="settingsAccountStatus">—</div>
+      </div>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label>账户导出凭证（ncryptsec）</label>
+      <textarea id="exportNcryptsec" rows="3" readonly placeholder="点击下方按钮生成…"></textarea>
+      <button class="btn-ghost" id="btnExportAccount" style="margin-top:8px;width:100%">生成并复制</button>
+      <p class="warning-text">这是账户唯一凭证。拿到它的人可以尝试用密码解锁，请勿分享。</p>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnCloseSettings">关闭</button>
+      <button class="btn-danger" id="btnLogout">退出登录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新建群聊 / 发起私聊 / 加入群聊 -->
+<div class="overlay hidden" id="roomOverlay">
+  <div class="modal">
+    <h3 id="roomModalTitle">新建群聊</h3>
+    <p class="desc" id="roomModalDesc"></p>
+    <div class="field">
+      <label id="roomNameLabel">群聊名称</label>
+      <input id="roomNameInput" maxlength="64" placeholder="例如：项目讨论组" autocomplete="off">
+    </div>
+    <div class="field" id="passwordFieldWrap">
+      <label>房间密码（可选）</label>
+      <input id="roomPasswordInput" type="password" placeholder="留空则不加密">
+    </div>
+    <div class="modal-error" id="roomError"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnCancelRoom">取消</button>
+      <button class="btn-primary" id="btnCreateRoom">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- 房间密码 -->
+<div class="overlay hidden" id="roomPasswordOverlay">
+  <div class="modal">
+    <h3>输入房间密码</h3>
+    <p class="desc">该群聊已加密。输入密码后才能查看历史消息和发送新消息。</p>
+    <div class="field">
+      <label>房间密码</label>
+      <input id="roomPasswordInput2" type="password" placeholder="房间密码">
+    </div>
+    <div class="modal-error" id="roomPasswordError"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnCancelRoomPassword">取消</button>
+      <button class="btn-primary" id="btnSubmitRoomPassword">解锁</button>
+    </div>
+  </div>
+</div>
+
+<div class="ctx-menu hidden" id="msgMenu">
+  <button data-action="copy">复制文字</button>
+  <button data-action="recall" class="danger">撤回</button>
+</div>
+<div id="toast"></div>
+
+<script type="module">
+import { generateSecretKey, getPublicKey, finalizeEvent, verifyEvent } from 'https://esm.sh/nostr-tools@2.25.2/pure';
+import { SimplePool } from 'https://esm.sh/nostr-tools@2.25.2/pool';
+import { encrypt as nip49Encrypt, decrypt as nip49Decrypt } from 'https://esm.sh/nostr-tools@2.25.2/nip49';
+import * as nip44 from 'https://esm.sh/nostr-tools@2.25.2/nip44';
+import { getEventHash } from 'https://esm.sh/nostr-tools@2.25.2/pure';
+import { deflateSync, inflateSync } from 'https://esm.sh/fflate@0.8.3';
+
+/* ══════════════════════════════════════════════════════
+   密语 配置
+   ══════════════════════════════════════════════════════ */
+const RELAYS = [
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+  'wss://relay.nostr.band',
+  'wss://nostr.mom',
+  'wss://relay.snort.social',
+  'wss://relay.nostr.net',
+];
+
+const CHUNK_SIZE = 32 * 1024;
+const CHUNK_SIZE_ENCRYPTED = 24 * 1024;
+const CHUNK_SIZE_DM = 22 * 1024;
+const CHUNK_CONCURRENCY = 4;
+const FILE_RX_TIMEOUT = 90 * 1000;
+const FILE_RX_MAX_WAIT = 45 * 60 * 1000;
+const FILE_RX_RETRY_LIMIT = 12;
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const MAX_CHUNKS = 4096;
+const PUBLISH_TIMEOUT = 10000;
+const PUBLISH_ATTEMPTS = 3;
+const RECALL_WINDOW = 2 * 60 * 1000;
+const FILE_CACHE_TTL = 60 * 60 * 1000;
+const ACCOUNT_KEY = 'ef-ncryptsec';
+const NAME_KEY = 'ef-name';
+const LAST_ROOM_KEY = 'ef-last-room';
+const ROOMS_KEY_PREFIX = 'ef-rooms-v4';
+const SEND_KEY_SETTING = 'ef-send-key';
+const IMAGE_COMPRESS_SETTING = 'ef-image-compress';
+const UI_SETTINGS_KEY = 'miyu-ui-settings-v1';
+const PROFILE_KEY_PREFIX = 'miyu-profile-v1';
+const PEER_AVATAR_KEY = 'miyu-peer-avatars-v1';
+const RECALL_KEY_PREFIX = 'miyu-recalls-v1';
+const APP_DIR_KEY_PREFIX = 'miyu-appdir-v1';
+const VERIFIER_PLAINTEXT = 'ef-room-verifier';
+const DM_RUMOR_CACHE_MAX = 2000;
+
+/* ══════════════════════════════════════════════════════
+   编码 / 哈希
+   ══════════════════════════════════════════════════════ */
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+const toHex = b => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+
+function b64encode(bytes) {
+  let s = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(s);
+}
+function b64decode(str) {
+  const bin = atob(str);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+async function sha256Hex(bytes) {
+  const h = await crypto.subtle.digest('SHA-256', bytes);
+  return toHex(new Uint8Array(h));
+}
+
+/* ══════════════════════════════════════════════════════
+   界面设置 / 资料 / 头像
+   ══════════════════════════════════════════════════════ */
+const ACCENTS = ['wechat', 'violet', 'ice', 'cyan', 'lime', 'amber', 'rose'];
+
+const DEFAULT_UI_SETTINGS = {
+  font: 'normal',
+  accent: 'wechat',
+  groupAvatars: false,
+  dmAvatars: true,
+  shareAvatar: true,
+};
+let uiSettings = { ...DEFAULT_UI_SETTINGS };
+let profile = { avatar: null, updatedAt: 0 };
+let peerAvatars = new Map();
+
+function loadUISettings() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(UI_SETTINGS_KEY) || '{}');
+    uiSettings = { ...DEFAULT_UI_SETTINGS, ...(raw && typeof raw === 'object' ? raw : {}) };
+  } catch { uiSettings = { ...DEFAULT_UI_SETTINGS }; }
+  if (!['small', 'normal', 'large', 'xlarge'].includes(uiSettings.font)) uiSettings.font = 'normal';
+  if (!ACCENTS.includes(uiSettings.accent)) uiSettings.accent = 'wechat';
+}
+
+function saveUISettings() {
+  try { localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(uiSettings)); } catch { /* 忽略 */ }
+}
+
+function applyAccent(accent) {
+  const value = ACCENTS.includes(accent) ? accent : 'wechat';
+  document.documentElement.dataset.accent = value;
+  const wrap = $('accentSwatches');
+  if (wrap) {
+    for (const btn of wrap.querySelectorAll('.swatch')) {
+      btn.classList.toggle('active', btn.dataset.accent === value);
+    }
+  }
+}
+
+function applyUISettings() {
+  document.documentElement.dataset.font = uiSettings.font;
+  applyAccent(uiSettings.accent);
+  const fontSel = $('fontSizeSelect');
+  if (fontSel) fontSel.value = uiSettings.font;
+  const groupToggle = $('groupAvatarToggle');
+  if (groupToggle) groupToggle.checked = uiSettings.groupAvatars;
+  const dmToggle = $('dmAvatarToggle');
+  if (dmToggle) dmToggle.checked = uiSettings.dmAvatars;
+  const shareToggle = $('shareAvatarToggle');
+  if (shareToggle) shareToggle.checked = uiSettings.shareAvatar;
+  renderedSignature = null;
+  if (state.activeRoom) renderMessages();
+}
+
+function profileStorageKey() {
+  return myPub ? `${PROFILE_KEY_PREFIX}:${myPub}` : PROFILE_KEY_PREFIX;
+}
+
+function loadProfile() {
+  profile = { avatar: null, updatedAt: 0 };
+  try {
+    const raw = JSON.parse(localStorage.getItem(profileStorageKey()) || 'null');
+    if (raw && typeof raw === 'object') {
+      if (typeof raw.avatar === 'string' && /^data:image\//.test(raw.avatar) && raw.avatar.length < 300000) {
+        profile.avatar = raw.avatar;
+      }
+      profile.updatedAt = Number(raw.updatedAt) || 0;
+    }
+  } catch { /* 忽略 */ }
+}
+
+function saveProfileLocal() {
+  try { localStorage.setItem(profileStorageKey(), JSON.stringify(profile)); } catch { /* 忽略 */ }
+  updateAvatarUI();
+  if (state.activeRoom) { renderedSignature = null; renderMessages(); }
+  syncAppData().catch(() => {});
+}
+
+function loadPeerAvatars() {
+  peerAvatars = new Map();
+  try {
+    const raw = JSON.parse(localStorage.getItem(PEER_AVATAR_KEY) || '{}');
+    if (raw && typeof raw === 'object') {
+      for (const [pub, url] of Object.entries(raw)) {
+        if (typeof url === 'string' && /^data:image\//.test(url) && url.length < 300000) {
+          peerAvatars.set(pub, url);
+        }
+      }
+    }
+  } catch { /* 忽略 */ }
+}
+
+function savePeerAvatars() {
+  try {
+    const entries = [...peerAvatars.entries()].slice(-60);
+    peerAvatars = new Map(entries);
+    localStorage.setItem(PEER_AVATAR_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch { /* 忽略 */ }
+}
+
+function rememberPeerAvatar(pubkey, tags) {
+  if (!pubkey || !Array.isArray(tags)) return;
+  const tag = tags.find(t => Array.isArray(t) && t[0] === 'avatar');
+  const url = tag && tag[1];
+  if (typeof url !== 'string' || !/^data:image\/(png|jpeg|webp);base64,/.test(url) || url.length > 40000) return;
+  if (peerAvatars.get(pubkey) === url) return;
+  peerAvatars.set(pubkey, url);
+  savePeerAvatars();
+  scheduleRoomList();
+  if (state.activeRoom) { renderedSignature = null; scheduleRender(); }
+}
+
+function avatarFor(pubkey) {
+  if (!pubkey) return null;
+  if (pubkey === myPub) return profile.avatar;
+  return peerAvatars.get(pubkey) || null;
+}
+
+function avatarTag() {
+  if (!uiSettings.shareAvatar || !profile.avatar) return [];
+  return [['avatar', profile.avatar]];
+}
+
+function avatarLabel(pubkey) {
+  if (pubkey && pubkey === myPub && state.myName) return state.myName.slice(0, 1).toUpperCase();
+  return (pubkey || '?').slice(0, 1).toUpperCase();
+}
+
+function avatarHue(pubkey) {
+  let h = 0;
+  for (const ch of String(pubkey || '')) h = ((h << 5) - h + ch.charCodeAt(0)) | 0;
+  return Math.abs(h) % 360;
+}
+
+function paintAvatar(el, pubkey, label) {
+  if (!el) return;
+  const url = avatarFor(pubkey);
+  el.textContent = '';
+  if (url) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    el.appendChild(img);
+    el.style.background = '';
+  } else {
+    el.textContent = label || avatarLabel(pubkey);
+    el.style.background = `linear-gradient(135deg,hsl(${avatarHue(pubkey)} 30% 82%),hsl(${avatarHue(pubkey)} 28% 72%))`;
+    el.style.color = '#555';
+  }
+}
+
+function updateAvatarUI() {
+  paintAvatar($('sideMeAvatar'), myPub, (state.myName || '—').slice(0, 1));
+  paintAvatar($('settingsAvatar'), myPub, (state.myName || '密').slice(0, 1));
+}
+
+async function fileToAvatarDataUrl(file) {
+  const bitmap = await new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image decode failed')); };
+    img.src = url;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = 96; canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  const side = Math.min(bitmap.width, bitmap.height);
+  const sx = (bitmap.width - side) / 2;
+  const sy = (bitmap.height - side) / 2;
+  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, 96, 96);
+  let quality = 0.84;
+  let dataUrl = canvas.toDataURL('image/jpeg', quality);
+  while (dataUrl.length > 22000 && quality > 0.45) {
+    quality -= 0.12;
+    dataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+  return dataUrl;
+}
+
+/* ══════════════════════════════════════════════════════
+   撤回记录
+   ══════════════════════════════════════════════════════ */
+function recallStorageKey(roomId) {
+  return `${RECALL_KEY_PREFIX}:${myPub}:${roomId}`;
+}
+
+function loadRecallTargets(roomId) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(recallStorageKey(roomId)) || '[]');
+    return new Set(Array.isArray(raw) ? raw.filter(x => typeof x === 'string').slice(-2000) : []);
+  } catch { return new Set(); }
+}
+
+function persistRecallTargets(room, ids) {
+  if (!room || !ids.length) return;
+  for (const id of ids) room.recalledIds.add(id);
+  try {
+    localStorage.setItem(recallStorageKey(room.id), JSON.stringify([...room.recalledIds].slice(-2000)));
+  } catch { /* 忽略 */ }
+}
+
+/* ══════════════════════════════════════════════════════
+   文件控制消息
+   ══════════════════════════════════════════════════════ */
+function tryParseFileNeed(text) {
+  if (typeof text !== 'string' || !text.startsWith('{"_ef_need"')) return null;
+  try {
+    const p = JSON.parse(text);
+    if (!p || p._ef_need !== 1 || typeof p.messageId !== 'string') return null;
+    if (!Array.isArray(p.missing) || p.missing.length > 512) return null;
+    p.missing = p.missing.filter(n => Number.isInteger(n) && n >= 0);
+    return p;
+  } catch { return null; }
+}
+
+/* ══════════════════════════════════════════════════════
+   AES-256-GCM
+   ══════════════════════════════════════════════════════ */
+async function deriveKey(password, salt) {
+  const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 210000, hash: 'SHA-256' },
+    km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+async function encryptBytes(key, bytes) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes));
+  const out = new Uint8Array(12 + ct.length);
+  out.set(iv, 0); out.set(ct, 12);
+  return out;
+}
+async function decryptBytes(key, combined) {
+  const iv = combined.slice(0, 12);
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, combined.slice(12)));
+}
+async function encryptText(key, text) { return b64encode(await encryptBytes(key, enc.encode(text))); }
+async function decryptText(key, b64) { return dec.decode(await decryptBytes(key, b64decode(b64))); }
+
+async function makeRoomVerifier(key) {
+  return encryptText(key, VERIFIER_PLAINTEXT);
+}
+async function checkRoomVerifier(key, verifierB64) {
+  try {
+    const plain = await decryptText(key, verifierB64);
+    return plain === VERIFIER_PLAINTEXT;
+  } catch { return false; }
+}
+
+async function deriveAesKeyFromConvKey(convKey) {
+  const keyMaterial = await crypto.subtle.importKey('raw', convKey, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: enc.encode('ef-file-aes-v1') },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   NIP-59 Gift Wrap
+   ══════════════════════════════════════════════════════ */
+async function wrapDM(peerPub, innerEvent) {
+  const rumor = {
+    kind: innerEvent.kind || 1,
+    content: innerEvent.content,
+    tags: innerEvent.tags || [],
+    created_at: innerEvent.created_at || Math.floor(Date.now() / 1000),
+    pubkey: myPub,
+  };
+  rumor.id = getEventHash(rumor);
+
+  const convKey = nip44.v2.utils.getConversationKey(sk, peerPub);
+  const sealContent = nip44.v2.encrypt(JSON.stringify(rumor), convKey);
+  const seal = finalizeEvent({
+    kind: 13,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [],
+    content: sealContent,
+  }, sk);
+
+  const ephemeralSk = generateSecretKey();
+  const ephemeralPub = getPublicKey(ephemeralSk);
+  const wrapConvKey = nip44.v2.utils.getConversationKey(ephemeralSk, peerPub);
+  const wrapContent = nip44.v2.encrypt(JSON.stringify(seal), wrapConvKey);
+  const giftWrap = finalizeEvent({
+    kind: 1059,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [['p', peerPub]],
+    content: wrapContent,
+  }, ephemeralSk);
+  giftWrap.rumorId = rumor.id;
+  return giftWrap;
+}
+
+async function unwrapDM(giftWrapEv) {
+  const convKey = nip44.v2.utils.getConversationKey(sk, giftWrapEv.pubkey);
+  const sealJson = nip44.v2.decrypt(giftWrapEv.content, convKey);
+  const seal = JSON.parse(sealJson);
+  if (!verifyEvent(seal)) throw new Error('invalid seal signature');
+  if (seal.kind !== 13) throw new Error('invalid seal kind');
+  const sealConvKey = nip44.v2.utils.getConversationKey(sk, seal.pubkey);
+  const rumorJson = nip44.v2.decrypt(seal.content, sealConvKey);
+  const rumor = JSON.parse(rumorJson);
+  if (rumor.pubkey !== seal.pubkey) throw new Error('pubkey mismatch');
+  return rumor;
+}
+
+const dmRumorCache = new Map();
+function cacheDMRumor(id, rumor) {
+  if (dmRumorCache.size >= DM_RUMOR_CACHE_MAX) {
+    const firstKey = dmRumorCache.keys().next().value;
+    dmRumorCache.delete(firstKey);
+  }
+  dmRumorCache.set(id, rumor);
+}
+async function getOrUnwrapDM(ev) {
+  if (dmRumorCache.has(ev.id)) return dmRumorCache.get(ev.id);
+  const rumor = await unwrapDM(ev);
+  cacheDMRumor(ev.id, rumor);
+  return rumor;
+}
+
+/* ══════════════════════════════════════════════════════
+   文件类型嗅探
+   ══════════════════════════════════════════════════════ */
+function looksLikeText(bytes) {
+  const sample = bytes.slice(0, 512);
+  if (!sample.length) return true;
+  for (const b of sample) if (b === 0) return false;
+  let printable = 0;
+  for (const b of sample) {
+    if ((b >= 32 && b <= 126) || b === 9 || b === 10 || b === 13 || b === 12) printable++;
+  }
+  return printable / sample.length > 0.95;
+}
+function isTextLike(file, bytes) {
+  const mime = (file.type || '').toLowerCase();
+  if (mime.startsWith('text/')) return true;
+  if (['application/json','application/xml','application/javascript',
+       'application/x-yaml','application/toml','application/sql',
+       'application/x-sh','image/svg+xml'].includes(mime)) return true;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const textExts = new Set(['txt','md','json','xml','yaml','yml','toml','ini',
+    'cfg','conf','log','csv','tsv','html','css','scss','js','jsx','ts','tsx',
+    'py','rb','go','rs','java','kt','c','h','cpp','hpp','cs','swift','php',
+    'lua','sh','bash','zsh','bat','ps1','sql','vue','svelte','tex','svg','rst']);
+  if (textExts.has(ext)) return true;
+  if (['dockerfile','makefile','readme','license','.gitignore','.env'].includes(file.name.toLowerCase())) return true;
+  if (!mime || mime === 'application/octet-stream') return looksLikeText(bytes);
+  return false;
+}
+
+function withTimeout(promise, ms) {
+  return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+}
+async function tryOptimisePng(bytes) {
+  try {
+    const { optimise } = await withTimeout(
+      import('https://esm.sh/@jsquash/oxipng@2.3.0'), 8000
+    );
+    const out = await withTimeout(
+      optimise(bytes.buffer, { level: 3, interlace: false, optimiseAlpha: true }), 8000
+    );
+    return new Uint8Array(out);
+  } catch { return null; }
+}
+async function tryOptimiseJpeg(bytes) {
+  try {
+    const { decode, encode } = await withTimeout(
+      import('https://esm.sh/@jsquash/jpeg@1.6.0'), 8000
+    );
+    const imageData = await withTimeout(decode(bytes.buffer), 8000);
+    const out = await withTimeout(encode(imageData, { quality: 92 }), 8000);
+    return new Uint8Array(out);
+  } catch { return null; }
+}
+
+async function prepareFileBytes(file, room) {
+  let bytes = new Uint8Array(await file.arrayBuffer());
+  let compressed = false;
+  let engine = 'none';
+  const mime = (file.type || '').toLowerCase();
+
+  if (isTextLike(file, bytes)) {
+    const z = deflateSync(bytes, { level: 6 });
+    if (z.length < bytes.length * 0.90) { bytes = z; compressed = true; engine = 'fflate'; }
+  }
+
+  if (!compressed) {
+    if (mime === 'image/png') {
+      const opt = await tryOptimisePng(bytes);
+      if (opt && opt.length < bytes.length * 0.95) { bytes = opt; compressed = true; engine = 'oxipng'; }
+    } else if ((mime === 'image/jpeg' || mime === 'image/jpg')
+               && localStorage.getItem(IMAGE_COMPRESS_SETTING) === 'on') {
+      const opt = await tryOptimiseJpeg(bytes);
+      if (opt && opt.length < bytes.length * 0.95) { bytes = opt; compressed = true; engine = 'mozjpeg'; }
+    }
+  }
+
+  let encrypted = false;
+  if (room.key) {
+    bytes = await encryptBytes(room.key, bytes);
+    encrypted = true;
+  } else if (room.convKey) {
+    const dmAesKey = await deriveAesKeyFromConvKey(room.convKey);
+    bytes = await encryptBytes(dmAesKey, bytes);
+    encrypted = true;
+    engine = engine === 'none' ? 'nip44-aes' : engine + '+nip44';
+  }
+
+  return { bytes, compressed, encrypted, engine };
+}
+
+async function restoreFromTransmitted(transmitted, room, compressed, encrypted, engine) {
+  let data = transmitted;
+  if (encrypted) {
+    if (room.key) data = await decryptBytes(room.key, data);
+    else if (room.convKey) {
+      const dmAesKey = await deriveAesKeyFromConvKey(room.convKey);
+      data = await decryptBytes(dmAesKey, data);
+    }
+  }
+  if (compressed && engine.includes('fflate')) data = inflateSync(data);
+  return data;
+}
+
+function tryParseFilePayload(text) {
+  if (typeof text !== 'string') return null;
+  if (!text.startsWith('{"_ef_file"')) return null;
+  try {
+    const parsed = JSON.parse(text);
+    if (!parsed || parsed._ef_file !== 1) return null;
+    if (typeof parsed.data !== 'string' || !parsed.messageId) return null;
+    return parsed;
+  } catch { return null; }
+}
+
+/* ══════════════════════════════════════════════════════
+   本地持久化
+   ══════════════════════════════════════════════════════ */
+const DB_NAME = 'ef-r1';
+const DB_VERSION = 4;
+const IDB_OPEN_TIMEOUT = 1200;
+const LS_EVENT_PREFIX = 'ef-r1:ev:';
+const LS_BLOB_PREFIX = 'ef-r1:bl:';
+const LS_BLOB_MAX_BYTES = 1.5 * 1024 * 1024;
+const LS_BLOB_MAX_TOTAL = 3.5 * 1024 * 1024;
+const EVENTS_PER_ROOM_LIMIT = 300;
+
+let dbPromise = null;
+let storageMode = 'idb';
+const memBlobs = new Map();
+
+function useFallbackStorage() {
+  storageMode = 'fallback';
+}
+
+function openDB() {
+  if (dbPromise) return dbPromise;
+  if (storageMode === 'fallback') return Promise.reject(new Error('storage fallback'));
+
+  dbPromise = new Promise((resolve, reject) => {
+    let settled = false;
+    let req;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      storageMode = 'fallback';
+      reject(new Error('IndexedDB timeout'));
+    }, IDB_OPEN_TIMEOUT);
+
+    try {
+      req = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (err) {
+      clearTimeout(timer);
+      settled = true;
+      storageMode = 'fallback';
+      reject(err);
+      return;
+    }
+
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('events')) {
+        const store = db.createObjectStore('events', { keyPath: 'compositeId' });
+        store.createIndex('room_created', ['roomId', 'created_at']);
+        store.createIndex('accountPub', 'accountPub');
+      } else {
+        const store = req.transaction.objectStore('events');
+        if (!store.indexNames.contains('room_created')) {
+          store.createIndex('room_created', ['roomId', 'created_at']);
+        }
+        if (!store.indexNames.contains('accountPub')) {
+          store.createIndex('accountPub', 'accountPub');
+        }
+      }
+      if (!db.objectStoreNames.contains('meta')) {
+        db.createObjectStore('meta', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('blobs')) {
+        db.createObjectStore('blobs', { keyPath: 'compositeId' });
+      }
+      if (!db.objectStoreNames.contains('sent_files')) {
+        db.createObjectStore('sent_files', { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = () => {
+      if (settled) {
+        try { req.result.close(); } catch { /* 忽略 */ }
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      storageMode = 'fallback';
+      reject(req.error || new Error('IndexedDB error'));
+    };
+    req.onblocked = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      storageMode = 'fallback';
+      reject(new Error('IndexedDB blocked'));
+    };
+  });
+  return dbPromise;
+}
+
+function accountRoomId(roomId) {
+  return `${myPub}:${roomId}`;
+}
+function compositeEventId(evId) {
+  return `${myPub}:${evId}`;
+}
+
+function fallbackEventKey(roomId) {
+  return `${LS_EVENT_PREFIX}${myPub}:${roomId}`;
+}
+
+function readFallbackEvents(roomId) {
+  try {
+    const raw = localStorage.getItem(fallbackEventKey(roomId));
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function writeFallbackEvents(roomId, list) {
+  const trimmed = list
+    .sort((a, b) => a.created_at - b.created_at)
+    .slice(-EVENTS_PER_ROOM_LIMIT);
+  try {
+    localStorage.setItem(fallbackEventKey(roomId), JSON.stringify(trimmed));
+    return true;
+  } catch {
+    try {
+      localStorage.setItem(
+        fallbackEventKey(roomId),
+        JSON.stringify(trimmed.slice(-Math.floor(EVENTS_PER_ROOM_LIMIT / 2)))
+      );
+      return true;
+    } catch { return false; }
+  }
+}
+
+function persistEventFallback(roomId, record) {
+  const list = readFallbackEvents(roomId);
+  const at = list.findIndex(r => r.id === record.id);
+  if (at >= 0) list[at] = record;
+  else list.push(record);
+  writeFallbackEvents(roomId, list);
+}
+
+function eventRecord(roomId, item) {
+  return {
+    compositeId: compositeEventId(item.ev.id),
+    id: item.ev.id,
+    accountPub: myPub,
+    roomId: accountRoomId(roomId),
+    created_at: item.ev.created_at,
+    pubkey: item.displayPubkey || item.ev.pubkey,
+    content: item.text ?? null,
+    fileMeta: item.fileMeta ?? null,
+    senderName: item.senderName,
+    failed: !!item.failed,
+    fileError: item.fileError ?? null,
+    status: item.status ?? null,
+    recalled: !!item.recalled,
+  };
+}
+
+async function persistEvent(roomId, item) {
+  const record = eventRecord(roomId, item);
+  if (storageMode !== 'fallback') {
+    try {
+      const db = await openDB();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction('events', 'readwrite');
+        tx.objectStore('events').put(record);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+      return;
+    } catch { useFallbackStorage(); }
+  }
+  persistEventFallback(roomId, record);
+}
+
+async function loadRoomEvents(roomId) {
+  let rows = [];
+  if (storageMode !== 'fallback') {
+    try {
+      const db = await openDB();
+      const tx = db.transaction('events', 'readonly');
+      const idx = tx.objectStore('events').index('room_created');
+      rows = await new Promise((resolve) => {
+        const range = IDBKeyRange.bound([accountRoomId(roomId), 0], [accountRoomId(roomId), Infinity]);
+        const req = idx.getAll(range);
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      });
+    } catch { useFallbackStorage(); }
+  }
+
+  const fallbackRows = readFallbackEvents(roomId);
+  if (!fallbackRows.length) return rows;
+  const byId = new Map();
+  for (const rec of fallbackRows) {
+    if (rec && rec.id) byId.set(rec.id, rec);
+  }
+  for (const rec of rows) {
+    if (rec && rec.id) byId.set(rec.id, rec);
+  }
+  return [...byId.values()].sort((a, b) => a.created_at - b.created_at);
+}
+
+function fallbackBlobKey(evId) {
+  return `${LS_BLOB_PREFIX}${myPub}:${evId}`;
+}
+
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('read blob failed'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function dataURLToBlob(url) {
+  const comma = url.indexOf(',');
+  if (comma < 0) return null;
+  const header = url.slice(0, comma);
+  const body = url.slice(comma + 1);
+  const mime = (header.match(/^data:([^;,]+)/i) || [])[1] || 'application/octet-stream';
+  const binary = atob(body);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+function fallbackBlobKeys() {
+  const prefix = `${LS_BLOB_PREFIX}${myPub}:`;
+  const keys = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) keys.push(key);
+    }
+  } catch { /* 忽略 */ }
+  return keys;
+}
+
+function pruneFallbackBlobs(incomingLength) {
+  const entries = [];
+  let total = 0;
+  for (const key of fallbackBlobKeys()) {
+    let len = 0;
+    try { len = (localStorage.getItem(key) || '').length; } catch { /* 忽略 */ }
+    entries.push({ key, len });
+    total += len;
+  }
+  for (const { key, len } of entries) {
+    if (total + incomingLength <= LS_BLOB_MAX_TOTAL) break;
+    try { localStorage.removeItem(key); } catch { /* 忽略 */ }
+    total -= len;
+  }
+}
+
+async function persistBlob(evId, blob) {
+  if (storageMode !== 'fallback') {
+    try {
+      const db = await openDB();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction('blobs', 'readwrite');
+        tx.objectStore('blobs').put({ compositeId: compositeEventId(evId), blob });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+      return;
+    } catch { useFallbackStorage(); }
+  }
+
+  memBlobs.set(compositeEventId(evId), blob);
+  if (!blob) return;
+  if (blob.size > LS_BLOB_MAX_BYTES) {
+    try { localStorage.removeItem(fallbackBlobKey(evId)); } catch { /* 忽略 */ }
+    return;
+  }
+
+  try {
+    const dataUrl = await blobToDataURL(blob);
+    if (dataUrl.length > LS_BLOB_MAX_BYTES * 1.4) return;
+    pruneFallbackBlobs(dataUrl.length);
+    try {
+      localStorage.setItem(fallbackBlobKey(evId), dataUrl);
+    } catch {
+      for (const key of fallbackBlobKeys()) {
+        if (key !== fallbackBlobKey(evId)) {
+          try { localStorage.removeItem(key); } catch { /* 忽略 */ }
+        }
+      }
+      localStorage.setItem(fallbackBlobKey(evId), dataUrl);
+    }
+  } catch { /* 只保留内存副本 */ }
+}
+
+function loadFallbackBlob(evId) {
+  const key = compositeEventId(evId);
+  const cached = memBlobs.get(key);
+  if (cached) return cached;
+  try {
+    const dataUrl = localStorage.getItem(fallbackBlobKey(evId));
+    if (!dataUrl) return null;
+    const blob = dataURLToBlob(dataUrl);
+    if (blob) memBlobs.set(key, blob);
+    return blob || null;
+  } catch { return null; }
+}
+
+async function loadBlob(evId) {
+  if (storageMode !== 'fallback') {
+    try {
+      const db = await openDB();
+      const tx = db.transaction('blobs', 'readonly');
+      const blob = await new Promise((res) => {
+        const req = tx.objectStore('blobs').get(compositeEventId(evId));
+        req.onsuccess = () => res(req.result?.blob || null);
+        req.onerror = () => res(null);
+      });
+      if (blob) return blob;
+    } catch { useFallbackStorage(); }
+  }
+  return loadFallbackBlob(evId);
+}
+
+async function deleteBlob(evId) {
+  const compositeId = compositeEventId(evId);
+  memBlobs.delete(compositeId);
+  try { localStorage.removeItem(fallbackBlobKey(evId)); } catch { /* 忽略 */ }
+  if (storageMode !== 'fallback') {
+    try {
+      const db = await openDB();
+      await new Promise((resolve) => {
+        const tx = db.transaction('blobs', 'readwrite');
+        tx.objectStore('blobs').delete(compositeId);
+        tx.oncomplete = resolve;
+        tx.onerror = resolve;
+        tx.onabort = resolve;
+      });
+    } catch { useFallbackStorage(); }
+  }
+}
+
+async function deleteAccountData() {
+  if (storageMode !== 'fallback') {
+    try {
+      const db = await openDB();
+      await new Promise((resolve) => {
+        const tx = db.transaction(['events', 'blobs', 'meta'], 'readwrite');
+        const idx = tx.objectStore('events').index('accountPub');
+        const req = idx.openCursor(IDBKeyRange.only(myPub));
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (cursor) { cursor.delete(); cursor.continue(); }
+        };
+        const blobStore = tx.objectStore('blobs');
+        const blobReq = blobStore.openCursor();
+        blobReq.onsuccess = () => {
+          const cursor = blobReq.result;
+          if (cursor) {
+            if (cursor.value.compositeId.startsWith(myPub + ':')) cursor.delete();
+            cursor.continue();
+          }
+        };
+        const metaStore = tx.objectStore('meta');
+        const metaReq = metaStore.openCursor();
+        metaReq.onsuccess = () => {
+          const cursor = metaReq.result;
+          if (cursor) {
+            if (cursor.value.key && cursor.value.key.startsWith(myPub + ':')) cursor.delete();
+            cursor.continue();
+          }
+        };
+        tx.oncomplete = resolve;
+        tx.onerror = resolve;
+        tx.onabort = resolve;
+      });
+    } catch { useFallbackStorage(); }
+  }
+
+  try {
+    const evPrefix = `${LS_EVENT_PREFIX}${myPub}:`;
+    const blPrefix = `${LS_BLOB_PREFIX}${myPub}:`;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith(evPrefix) || key.startsWith(blPrefix))) keys.push(key);
+    }
+    for (const key of keys) localStorage.removeItem(key);
+  } catch { /* 忽略 */ }
+  for (const key of [...memBlobs.keys()]) {
+    if (key.startsWith(myPub + ':')) memBlobs.delete(key);
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   已发送文件缓存
+   ══════════════════════════════════════════════════════ */
+async function persistSentFileCache(cache) {
+  if (storageMode === 'fallback') return;
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('sent_files', 'readwrite');
+      tx.objectStore('sent_files').put({
+        key: sentFileKey(cache.roomId, cache.messageId),
+        roomId: cache.roomId,
+        messageId: cache.messageId,
+        total: cache.total,
+        events: cache.events,
+        missing: [...cache.missing],
+        okCount: cache.okCount,
+        createdAt: cache.createdAt,
+      });
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* 忽略 */ }
+}
+
+async function loadSentFileCache() {
+  if (storageMode === 'fallback') return;
+  try {
+    const db = await openDB();
+    const tx = db.transaction('sent_files', 'readonly');
+    const req = tx.objectStore('sent_files').getAll();
+    const records = await new Promise((resolve) => {
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+    for (const rec of records) {
+      const key = rec.key;
+      const cache = {
+        roomId: rec.roomId,
+        messageId: rec.messageId,
+        total: rec.total,
+        events: rec.events,
+        missing: new Set(rec.missing || []),
+        okCount: rec.okCount || 0,
+        createdAt: rec.createdAt,
+      };
+      sentFileCache.set(key, cache);
+    }
+  } catch { /* 忽略 */ }
+}
+
+async function getSentFileCache(roomId, messageId) {
+  const key = sentFileKey(roomId, messageId);
+  let cache = sentFileCache.get(key);
+  if (cache) return cache;
+  if (storageMode !== 'fallback') {
+    try {
+      const db = await openDB();
+      const tx = db.transaction('sent_files', 'readonly');
+      const req = tx.objectStore('sent_files').get(key);
+      const rec = await new Promise((resolve) => {
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      });
+      if (rec) {
+        cache = {
+          roomId: rec.roomId,
+          messageId: rec.messageId,
+          total: rec.total,
+          events: rec.events,
+          missing: new Set(rec.missing || []),
+          okCount: rec.okCount || 0,
+          createdAt: rec.createdAt,
+        };
+        sentFileCache.set(key, cache);
+        return cache;
+      }
+    } catch { /* 忽略 */ }
+  }
+  return null;
+}
+
+/* ══════════════════════════════════════════════════════
+   APP DATA 目录
+   ══════════════════════════════════════════════════════ */
+let appDirHandle = null;
+let appDirReady = false;
+let appDirBusy = false;
+let appDirSupported = false;
+
+function appDirMetaKey() {
+  return myPub ? `${myPub}:${APP_DIR_KEY_PREFIX}` : APP_DIR_KEY_PREFIX;
+}
+
+async function metaGet(key) {
+  if (storageMode !== 'fallback') {
+    try {
+      const db = await openDB();
+      return await new Promise((resolve) => {
+        const tx = db.transaction('meta', 'readonly');
+        const req = tx.objectStore('meta').get(key);
+        req.onsuccess = () => resolve(req.result ? req.result.value : null);
+        req.onerror = () => resolve(null);
+      });
+    } catch { useFallbackStorage(); }
+  }
+  try {
+    const raw = localStorage.getItem(`miyu-meta:${key}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+async function metaSet(key, value) {
+  if (storageMode !== 'fallback') {
+    try {
+      const db = await openDB();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction('meta', 'readwrite');
+        tx.objectStore('meta').put({ key, value });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+      return true;
+    } catch { useFallbackStorage(); }
+  }
+  return false;
+}
+
+async function verifyDirPermission(handle, request = false) {
+  if (!handle) return false;
+  try {
+    const opts = { mode: 'readwrite' };
+    if (typeof handle.queryPermission === 'function') {
+      const stateNow = await handle.queryPermission(opts);
+      if (stateNow === 'granted') return true;
+      if (!request) return false;
+    }
+    if (request && typeof handle.requestPermission === 'function') {
+      return (await handle.requestPermission(opts)) === 'granted';
+    }
+  } catch { return false; }
+  return true;
+}
+
+function setAppDataStatus(text, tone = '') {
+  const el = $('appDataStatus');
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = tone === 'ok' ? 'var(--accent)' : tone === 'warn' ? 'var(--warning)' : '';
+}
+
+function updateAppDataButtons() {
+  const pick = $('btnPickAppData');
+  const sync = $('btnSyncAppData');
+  if (!pick || !sync) return;
+  if (!appDirSupported) {
+    pick.style.display = 'none';
+    sync.style.display = 'none';
+  } else {
+    pick.style.display = '';
+    sync.style.display = '';
+  }
+}
+
+async function writeTextToDir(dir, name, text) {
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable();
+  await w.write(new Blob([text], { type: 'application/json' }));
+  await w.close();
+}
+
+async function writeBlobToDir(dir, name, blob) {
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable();
+  await w.write(blob);
+  await w.close();
+}
+
+function dataUrlToBlob(dataUrl) {
+  try {
+    const comma = dataUrl.indexOf(',');
+    if (comma < 0) return null;
+    const mime = (dataUrl.slice(0, comma).match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+    return dataURLToBlob(`data:${mime};base64,${dataUrl.slice(comma + 1)}`);
+  } catch { return null; }
+}
+
+async function syncAppData(opts = {}) {
+  const manual = !!opts.manual;
+  if (!appDirSupported || !appDirHandle) {
+    if (manual) showToast('请先选择 APP DATA 文件夹');
+    return false;
+  }
+  if (appDirBusy) return false;
+  appDirBusy = true;
+  try {
+    const granted = await verifyDirPermission(appDirHandle, manual);
+    if (!granted) {
+      appDirReady = false;
+      setAppDataStatus('需要重新授权。点击“选择文件夹”或“立即同步”。', 'warn');
+      if (manual) showToast('需要重新允许访问该文件夹');
+      return false;
+    }
+    const dir = await appDirHandle.getDirectoryHandle('APP DATA', { create: true });
+    const body = {
+      app: '密语',
+      version: 1,
+      name: state.myName || '',
+      pubkey: myPub || '',
+      avatarFile: profile.avatar ? 'avatar.jpg' : null,
+      updatedAt: new Date().toISOString(),
+      settings: uiSettings,
+    };
+    await writeTextToDir(dir, 'profile.json', JSON.stringify(body, null, 2));
+    if (profile.avatar) {
+      const blob = dataUrlToBlob(profile.avatar);
+      if (blob) await writeBlobToDir(dir, 'avatar.jpg', blob);
+    }
+    appDirReady = true;
+    setAppDataStatus(`已连接：${appDirHandle.name} / APP DATA`, 'ok');
+    if (manual) showToast('已保存到 APP DATA');
+    return true;
+  } catch (e) {
+    appDirReady = false;
+    setAppDataStatus('写入失败：' + (e && e.message ? e.message : '无法访问文件夹'), 'warn');
+    if (manual) showToast('写入 APP DATA 失败');
+    return false;
+  } finally {
+    appDirBusy = false;
+  }
+}
+
+async function loadProfileFromAppData() {
+  if (!appDirHandle) return;
+  const granted = await verifyDirPermission(appDirHandle, false);
+  if (!granted) return;
+  try {
+    const dir = await appDirHandle.getDirectoryHandle('APP DATA', { create: false });
+    const fh = await dir.getFileHandle('profile.json', { create: false });
+    const text = await (await fh.getFile()).text();
+    const data = JSON.parse(text);
+    if (!data || typeof data !== 'object') return;
+    if (!profile.avatar && data.avatarFile) {
+      try {
+        const afh = await dir.getFileHandle(data.avatarFile, { create: false });
+        const blob = await afh.getFile();
+        if (blob && blob.size < 400000) {
+          const dataUrl = await blobToDataURL(blob);
+          if (/^data:image\//.test(dataUrl)) {
+            profile.avatar = dataUrl;
+            profile.updatedAt = Date.now();
+            saveProfileLocal();
+          }
+        }
+      } catch { /* 没有头像文件 */ }
+    }
+    appDirReady = true;
+    setAppDataStatus(`已连接：${appDirHandle.name} / APP DATA`, 'ok');
+  } catch { /* 首次还没有 profile.json */ }
+}
+
+async function restoreAppDir() {
+  appDirSupported = typeof window.showDirectoryPicker === 'function' && location.protocol !== 'file:';
+  updateAppDataButtons();
+  if (!appDirSupported) {
+    setAppDataStatus(
+      location.protocol === 'file:'
+        ? 'file:// 下浏览器限制文件夹访问。头像保存在本地，请使用“导出资料”手动放入 HTML 同目录的 APP DATA 文件夹。'
+        : '当前浏览器不支持文件夹访问。头像保存在浏览器本地，可用“导出资料”备份。',
+      'warn'
+    );
+    return;
+  }
+  try {
+    const handle = await metaGet(appDirMetaKey());
+    if (!handle || typeof handle.getDirectoryHandle !== 'function') {
+      setAppDataStatus('未连接。点击“选择文件夹”，程序会在其中创建 APP DATA。');
+      return;
+    }
+    appDirHandle = handle;
+    const granted = await verifyDirPermission(handle, false);
+    if (!granted) {
+      setAppDataStatus(`已记住“${handle.name}”，刷新后需要重新授权。点击“立即同步”。`, 'warn');
+      return;
+    }
+    await loadProfileFromAppData();
+    await syncAppData();
+  } catch {
+    setAppDataStatus('未连接。点击“选择文件夹”，程序会在其中创建 APP DATA。');
+  }
+}
+
+async function pickAppDataDir() {
+  if (!appDirSupported || !window.showDirectoryPicker) {
+    showToast('当前环境不支持选择文件夹，请使用“导出资料”');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({
+      id: 'miyu-app-data',
+      mode: 'readwrite',
+      startIn: 'documents',
+    });
+    appDirHandle = handle;
+    appDirReady = false;
+    await metaSet(appDirMetaKey(), handle);
+    await loadProfileFromAppData();
+    const ok = await syncAppData({ manual: true });
+    if (ok) showToast('APP DATA 已连接');
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    showToast('无法访问文件夹：' + (e && e.message ? e.message : e.name));
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   全局状态
+   ══════════════════════════════════════════════════════ */
+let sk = null;
+let myPub = null;
+const state = {
+  rooms: new Map(),
+  activeRoom: null,
+  pool: null,
+  myName: localStorage.getItem(NAME_KEY) || null,
+};
+
+function roomsStorageKey() {
+  return myPub ? `${ROOMS_KEY_PREFIX}:${myPub}` : ROOMS_KEY_PREFIX;
+}
+
+/* ══════════════════════════════════════════════════════
+   DOM
+   ══════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const roomListEl = $('roomList'), messagesEl = $('messages'), msgInput = $('msgInput'), sendBtn = $('sendBtn');
+const roomTitleEl = $('roomTitle'), roomSubEl = $('roomSub'), connDot = $('connDot');
+const sideMeNameEl = $('sideMeName'), sideMePubEl = $('sideMePub');
+const fileInput = $('fileInput'), fileBtn = $('fileBtn');
+const authOverlay = $('authOverlay');
+const authCreateView = $('authCreateView');
+const authUnlockView = $('authUnlockView');
+const authImportView = $('authImportView');
+const msgMenuEl = $('msgMenu');
+let menuTargetItem = null;
+let toastTimer = null;
+
+function showToast(text, ms = 2600) {
+  const el = $('toast');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+/* ══════════════════════════════════════════════════════
+   房间列表渲染
+   ══════════════════════════════════════════════════════ */
+let roomListDirty = false;
+function scheduleRoomList() {
+  if (roomListDirty) return;
+  roomListDirty = true;
+  requestAnimationFrame(() => { roomListDirty = false; renderRoomList(); });
+}
+
+function formatRoomTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return '昨天';
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function renderRoomList() {
+  roomListEl.innerHTML = '';
+  const rooms = [...state.rooms.values()].sort((a, b) => {
+    const ua = a.unread || 0, ub = b.unread || 0;
+    if (ua !== ub) return ub - ua;
+    return (b.lastActivity || 0) - (a.lastActivity || 0);
+  });
+  for (const room of rooms) {
+    const div = document.createElement('div');
+    div.className = 'room-item' + (state.activeRoom === room.id ? ' active' : '');
+    const unread = room.unread || 0;
+
+    const av = document.createElement('div');
+    av.className = 'room-avatar';
+    if (room.type === 'dm' && room.peerPub) {
+      paintAvatar(av, room.peerPub, '私');
+    } else {
+      av.textContent = room.label === '大厅' ? '大' : room.label.slice(0, 1).toUpperCase();
+      av.style.background = `linear-gradient(135deg,hsl(${avatarHue(room.id)} 30% 82%),hsl(${avatarHue(room.id)} 28% 72%))`;
+      av.style.color = '#555';
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'room-meta';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = room.label;
+    const sub = document.createElement('div');
+    sub.className = 'sub';
+    const preview = room.lastPreview ? String(room.lastPreview).slice(0, 40) : '';
+    sub.textContent = preview || (room.type === 'dm' ? '私聊 · 端到端加密' : (room.encrypted ? '加密群聊' : '公开群聊'));
+    meta.append(name, sub);
+
+    const side = document.createElement('div');
+    side.className = 'room-side';
+    const time = document.createElement('div');
+    time.className = 'room-time';
+    time.textContent = formatRoomTime(room.lastActivity);
+    side.appendChild(time);
+    if (unread > 0) {
+      const badge = document.createElement('div');
+      badge.className = 'room-badge unread';
+      badge.textContent = unread > 99 ? '99+' : String(unread);
+      side.appendChild(badge);
+    }
+
+    div.append(av, meta, side);
+    div.onclick = () => switchRoom(room.id);
+    div.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      switchRoom(room.id);
+    });
+    roomListEl.appendChild(div);
+  }
+  if (!state.rooms.size) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:24px 12px;font-size:13px;color:var(--text-3);line-height:1.7;text-align:center';
+    empty.textContent = '还没有会话。新建群聊、加入群聊，或用对方公钥发起私聊。';
+    roomListEl.appendChild(empty);
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   消息渲染
+   ══════════════════════════════════════════════════════ */
+let renderScheduled = false;
+let renderedSignature = null;
+
+function scheduleRender() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  requestAnimationFrame(() => { renderScheduled = false; renderMessages(); });
+}
+
+function renderMessages() {
+  const room = state.rooms.get(state.activeRoom);
+  if (!room) { messagesEl.innerHTML = ''; renderedSignature = null; return; }
+  const sorted = [...room.events].sort((a, b) => a.ev.created_at - b.ev.created_at);
+  const sig = sorted.map(i =>
+    `${i.ev.id}:${i.recalled ? 'r' : ''}:${i.status ?? ''}:${i.failed ? 1 : 0}:${i.downloadUrl ? 1 : 0}:${i.fileError || ''}:${i.text === null ? 'n' : 't'}`
+  ).join('|');
+  if (renderedSignature === sig) return;
+  fullRender(sorted);
+  renderedSignature = sig;
+}
+
+function fullRender(sorted) {
+  const atBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 90;
+  messagesEl.innerHTML = '';
+  const room = state.rooms.get(state.activeRoom);
+  if (room && room.type === 'group' && room.encrypted && !room.key) {
+    const warn = document.createElement('div');
+    warn.className = 'msg-system warn';
+    warn.textContent = '此群聊已加密。输入房间密码后才能查看和发送消息。';
+    messagesEl.appendChild(warn);
+  }
+  let prevAt = 0;
+  for (const item of sorted) {
+    const at = item.ev.created_at;
+    if (!prevAt || at - prevAt > 5 * 60 || new Date(at * 1000).toDateString() !== new Date(prevAt * 1000).toDateString()) {
+      const sep = document.createElement('div');
+      sep.className = 'msg-date';
+      sep.textContent = formatMsgDate(at);
+      messagesEl.appendChild(sep);
+    }
+    prevAt = at;
+    messagesEl.appendChild(buildMessageEl(item));
+  }
+  if (!sorted.length) {
+    const empty = document.createElement('div');
+    empty.className = 'msg-system';
+    empty.textContent = '还没有消息，发一条打个招呼吧';
+    messagesEl.appendChild(empty);
+  }
+  if (atBottom || !sorted.length) messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function formatMsgDate(ts) {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return hm;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return '昨天 ' + hm;
+  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`;
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${hm}`;
+}
+
+function shouldShowAvatar(room) {
+  if (!room) return false;
+  if (room.type === 'dm') return !!uiSettings.dmAvatars;
+  if (room.label === '大厅') return false;
+  return !!uiSettings.groupAvatars;
+}
+
+function fileTransferLine(item) {
+  const pct = Math.round(Math.max(0, Math.min(1, item.fileProgress || 0)) * 100);
+  if (item.failed) {
+    if (item.fileError === 'timeout') return { text: `传输超时 · ${pct}% · 会继续接收后续分片`, cls: 'fail' };
+    if (item.fileError === 'corrupt') return { text: '文件校验失败，内容可能不完整', cls: 'fail' };
+    return { text: '文件接收失败', cls: 'fail' };
+  }
+  if (item.status === 'fail' && !item.downloadUrl) return { text: `发送未完成 · ${pct}% · 可重试`, cls: 'fail' };
+  if (item.status === 'fail') return { text: `未完全送达 · ${pct}% · 可重试`, cls: 'fail' };
+  if (item.downloadUrl) return { text: '已完成 · 点击右侧保存', cls: 'ok' };
+  if (item.transferState === 'waiting') return { text: `等待补发 · ${pct}%`, cls: 'wait' };
+  if (item.transferState === 'verifying') return { text: '校验中…', cls: '' };
+  if (item.transferState === 'sending') return { text: `发送中 · ${pct}%`, cls: '' };
+  if (item.transferState === 'expired') return { text: '文件已过期或未保存到本机', cls: '' };
+  if ((item.fileProgress || 0) < 1) return { text: `接收中 · ${pct}%`, cls: '' };
+  return { text: '文件已发送', cls: 'ok' };
+}
+
+function buildMessageEl(item) {
+  const ev = item.ev;
+  const displayPubkey = item.displayPubkey || ev.pubkey;
+  const mine = displayPubkey === myPub;
+  const room = state.rooms.get(state.activeRoom);
+
+  if (item.recalled) {
+    const recall = document.createElement('div');
+    recall.className = 'msg-system recall';
+    recall.dataset.evid = ev.id;
+    recall.textContent = mine ? '你撤回了一条消息' : '对方撤回了一条消息';
+    return recall;
+  }
+
+  const group = document.createElement('div');
+  group.className = 'msg-group ' + (mine ? 'mine' : 'theirs');
+  group.dataset.evid = ev.id;
+
+  const showAvatar = shouldShowAvatar(room);
+  if (showAvatar) {
+    const av = document.createElement('div');
+    av.className = 'msg-avatar';
+    paintAvatar(av, displayPubkey, (item.senderName || displayPubkey || '?').slice(0, 1));
+    group.appendChild(av);
+  } else {
+    group.classList.add('no-avatar');
+  }
+
+  const body = document.createElement('div');
+  body.className = 'msg-body';
+
+  if (!mine && room && room.type === 'group') {
+    const s = document.createElement('div');
+    s.className = 'msg-sender';
+    s.textContent = item.senderName || (displayPubkey || '').slice(0, 8);
+    body.appendChild(s);
+  }
+
+  if (item.fileMeta) {
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    const meta = item.fileMeta;
+
+    if (item.downloadUrl && (meta.mime || '').startsWith('image/')) {
+      const prev = document.createElement('div');
+      prev.className = 'file-preview';
+      const img = document.createElement('img');
+      img.src = item.downloadUrl;
+      img.alt = meta.filename || '';
+      img.loading = 'lazy';
+      prev.appendChild(img);
+      bubble.appendChild(prev);
+    }
+
+    const card = document.createElement('div');
+    card.className = 'file-card';
+    card.dataset.fileMsg = meta.messageId || ev.id;
+
+    const icon = document.createElement('div');
+    icon.className = 'file-icon';
+    icon.textContent = (meta.mime || '').startsWith('image/') ? '▧' : '▤';
+
+    const info = document.createElement('div');
+    info.className = 'file-info';
+    const fname = document.createElement('div');
+    fname.className = 'file-name';
+    fname.textContent = meta.filename || '未知文件';
+    const fsize = document.createElement('div');
+    fsize.className = 'file-size';
+    fsize.textContent = `${formatSize(meta.size)}${meta.engine && meta.engine !== 'none' ? ' · ' + meta.engine : ''}`;
+    info.append(fname, fsize);
+
+    const line = fileTransferLine(item);
+    const transfer = document.createElement('div');
+    transfer.className = 'file-transfer ' + line.cls;
+    transfer.dataset.fileStatus = '1';
+    transfer.textContent = line.text;
+
+    if (!item.downloadUrl && !item.failed) {
+      const prog = document.createElement('div');
+      prog.className = 'file-progress';
+      const bar = document.createElement('div');
+      bar.className = 'file-progress-bar';
+      bar.dataset.fileBar = '1';
+      bar.style.width = `${Math.round((item.fileProgress || 0) * 100)}%`;
+      prog.appendChild(bar);
+      transfer.appendChild(prog);
+    }
+    info.appendChild(transfer);
+
+    card.append(icon, info);
+
+    if (item.downloadUrl) {
+      const a = document.createElement('a');
+      a.className = 'file-dl';
+      a.href = item.downloadUrl;
+      a.download = meta.filename || 'file';
+      a.textContent = '↓';
+      a.addEventListener('click', e => {
+        if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+          e.preventDefault();
+          window.open(item.downloadUrl, '_blank');
+        }
+      });
+      card.appendChild(a);
+    }
+    if (mine && item.status === 'fail' && meta.messageId) {
+      const retry = document.createElement('button');
+      retry.className = 'file-retry';
+      retry.type = 'button';
+      retry.textContent = '重试';
+      retry.addEventListener('click', e => {
+        e.stopPropagation();
+        retryFileSend(meta.messageId).catch(() => showToast('重试失败'));
+      });
+      card.appendChild(retry);
+    }
+
+    bubble.appendChild(card);
+    body.appendChild(bubble);
+  } else {
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    if (item.failed) {
+      bubble.textContent = '无法解密 · 密钥不匹配';
+      bubble.style.color = 'var(--text-3)';
+    } else if (item.text === null) {
+      bubble.textContent = '解密中…';
+      bubble.style.color = 'var(--text-3)';
+    } else {
+      bubble.textContent = item.text;
+    }
+    body.appendChild(bubble);
+  }
+
+  const time = document.createElement('div');
+  time.className = 'msg-time';
+  time.textContent = new Date(ev.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  body.appendChild(time);
+
+  if (!item.fileMeta && (item.status === 'pending' || item.status === 'fail')) {
+    const st = document.createElement('div');
+    st.className = 'msg-status ' + (item.status === 'fail' ? 'fail' : 'pending');
+    st.textContent = item.status === 'fail' ? '发送失败' : '发送中…';
+    body.appendChild(st);
+  }
+
+  group.appendChild(body);
+
+  if (mine) {
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'msg-menu-btn';
+    menuBtn.type = 'button';
+    menuBtn.title = '消息操作';
+    menuBtn.textContent = '⋯';
+    menuBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const r = menuBtn.getBoundingClientRect();
+      openMsgMenu(item, r.left, r.bottom + 4);
+    });
+    group.appendChild(menuBtn);
+    group.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      openMsgMenu(item, e.clientX, e.clientY);
+    });
+    let pressTimer = null;
+    group.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      pressTimer = setTimeout(() => {
+        openMsgMenu(item, e.touches[0].clientX, e.touches[0].clientY);
+      }, 520);
+    }, { passive: true });
+    const cancelPress = () => { clearTimeout(pressTimer); };
+    group.addEventListener('touchend', cancelPress, { passive: true });
+    group.addEventListener('touchmove', cancelPress, { passive: true });
+  }
+
+  return group;
+}
+
+function updateFileTransferDom(item) {
+  if (!item || !item.fileMeta || !item.fileMeta.messageId) return;
+  const card = messagesEl.querySelector(`[data-file-msg="${item.fileMeta.messageId}"]`);
+  if (!card) return;
+  const bar = card.querySelector('[data-file-bar]');
+  const status = card.querySelector('[data-file-status]');
+  const line = fileTransferLine(item);
+  if (bar) bar.style.width = `${Math.round((item.fileProgress || 0) * 100)}%`;
+  if (status) {
+    status.className = 'file-transfer ' + line.cls;
+    status.textContent = line.text;
+    if (!item.downloadUrl && !item.failed) {
+      const prog = document.createElement('div');
+      prog.className = 'file-progress';
+      const inner = document.createElement('div');
+      inner.className = 'file-progress-bar';
+      inner.dataset.fileBar = '1';
+      inner.style.width = `${Math.round((item.fileProgress || 0) * 100)}%`;
+      prog.appendChild(inner);
+      status.appendChild(prog);
+    }
+  }
+}
+
+function setFileProgress(item, progress, transferState) {
+  item.fileProgress = Math.max(0, Math.min(1, progress));
+  if (transferState) item.transferState = transferState;
+  if (item.fileMeta) updateFileTransferDom(item);
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+function formatSize(n) {
+  if (!n) return '0 B';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/* ══════════════════════════════════════════════════════
+   房间切换 / 订阅
+   ══════════════════════════════════════════════════════ */
+async function switchRoom(roomId) {
+  if (state.activeRoom === roomId) return;
+  const prevRoom = state.rooms.get(state.activeRoom);
+  if (prevRoom && prevRoom.sub) { prevRoom.sub.close(); prevRoom.sub = null; }
+  if (prevRoom) revokeRoomUrls(prevRoom);
+
+  state.activeRoom = roomId;
+  const room = state.rooms.get(roomId);
+  if (!room) return;
+
+  room.unread = 0;
+  updateRoomHeader(room);
+  renderedSignature = null;
+  renderRoomList();
+
+  await loadHistoryIfNeeded(room);
+  if (state.activeRoom !== roomId) return;
+
+  if (room.type === 'group' && room.encrypted && !room.key) {
+    const ok = await promptRoomPassword(room);
+    if (state.activeRoom !== roomId) return;
+    if (!ok) {
+      state.activeRoom = null;
+      roomTitleEl.textContent = '选择一个会话';
+      roomSubEl.textContent = '打开左侧会话列表开始聊天';
+      msgInput.disabled = true; sendBtn.disabled = true;
+      renderedSignature = null;
+      renderRoomList();
+      scheduleRender();
+      updateConnUI();
+      return;
+    }
+  }
+
+  msgInput.disabled = false; sendBtn.disabled = false;
+  await hydrateBlobUrls(room);
+  if (state.activeRoom !== roomId) return;
+  ensureSubscription(room);
+  renderMessages();
+  updateConnUI();
+  msgInput.focus();
+  localStorage.setItem(LAST_ROOM_KEY + ':' + myPub, roomId);
+  if (window.innerWidth <= 900) {
+    $('sidebar').classList.remove('mobile-open');
+    $('sidebarBackdrop').classList.remove('show');
+  }
+}
+
+async function promptRoomPassword(room) {
+  return new Promise((resolve) => {
+    const overlay = $('roomPasswordOverlay');
+    const input = $('roomPasswordInput2');
+    const err = $('roomPasswordError');
+    input.value = ''; err.textContent = '';
+    overlay.classList.remove('hidden');
+    input.focus();
+
+    let submitting = false;
+    const cleanup = () => {
+      overlay.classList.add('hidden');
+      $('btnSubmitRoomPassword').onclick = null;
+      $('btnCancelRoomPassword').onclick = null;
+    };
+
+    $('btnSubmitRoomPassword').onclick = async () => {
+      if (submitting) return;
+      const pwd = input.value;
+      if (!pwd) { err.textContent = '请输入密码'; return; }
+      submitting = true;
+      $('btnSubmitRoomPassword').disabled = true;
+      try {
+        const derivedKey = await deriveKey(pwd, room.id);
+        let valid = false;
+        if (room.verifier) {
+          valid = await checkRoomVerifier(derivedKey, room.verifier);
+        } else {
+          const candidates = room.events
+            .filter(e => e.ev && e.ev.content && !e.failed)
+            .map(e => e.ev.content);
+          if (!candidates.length && state.pool) {
+            try {
+              const fetched = await state.pool.querySync(
+                RELAYS,
+                { kinds: [1], '#t': [room.id], limit: 50 },
+                { maxWait: 4000 }
+              );
+              for (const ev of fetched) if (ev.content) candidates.push(ev.content);
+            } catch { /* 离线时忽略 */ }
+          }
+          if (!candidates.length) {
+            err.textContent = '无法校验密码：本地和 relay 都没有该频道的消息。请确认频道标识正确。';
+            return;
+          }
+          valid = false;
+          for (const content of candidates) {
+            try { await decryptText(derivedKey, content); valid = true; break; }
+            catch { /* 尝试下一条密文 */ }
+          }
+        }
+
+        if (!valid) { err.textContent = '密码错误或数据损坏'; return; }
+
+        room.key = derivedKey;
+        if (!room.verifier) {
+          room.verifier = await makeRoomVerifier(derivedKey);
+          persistRooms();
+        }
+
+        const pending = room.events.filter(i => i.text === null && !i.failed && i.ev.content);
+        const toRemove = [];
+        for (const item of pending) {
+          try {
+            let plaintext = item.ev.content;
+            if (room.encrypted && room.key) plaintext = await decryptText(room.key, item.ev.content);
+
+            const filePayload = tryParseFilePayload(plaintext);
+            if (filePayload) {
+              toRemove.push(item);
+              ingestFileChunk(room, filePayload, item.ev);
+              continue;
+            }
+
+            item.text = plaintext;
+            await persistEvent(room.id, item);
+          } catch {
+            item.failed = true;
+            try { await persistEvent(room.id, item); } catch {}
+          }
+        }
+        for (const item of toRemove) {
+          const idx = room.events.indexOf(item);
+          if (idx >= 0) room.events.splice(idx, 1);
+        }
+
+        cleanup();
+        resolve(true);
+      } catch {
+        err.textContent = '密码错误或数据损坏';
+      } finally {
+        submitting = false;
+        $('btnSubmitRoomPassword').disabled = false;
+      }
+    };
+    $('btnCancelRoomPassword').onclick = () => { cleanup(); resolve(false); };
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   Blob URL 生命周期
+   ══════════════════════════════════════════════════════ */
+function trackBlobUrl(room, item, blob) {
+  const url = URL.createObjectURL(blob);
+  item.downloadUrl = url;
+  if (!room.blobUrls) room.blobUrls = new Set();
+  room.blobUrls.add(url);
+  return url;
+}
+
+function revokeRoomUrls(room) {
+  if (!room) return;
+  for (const url of room.blobUrls || []) {
+    try { URL.revokeObjectURL(url); } catch { /* 忽略 */ }
+  }
+  if (room.blobUrls) room.blobUrls.clear();
+  for (const item of room.events) {
+    if (item.downloadUrl) item.downloadUrl = null;
+  }
+}
+
+function revokeAllUrls() {
+  for (const room of state.rooms.values()) revokeRoomUrls(room);
+}
+
+async function hydrateBlobUrls(room) {
+  const pending = room.events.filter(i => i.fileMeta && !i.downloadUrl && !i.failed && !i.recalled);
+  await Promise.all(pending.map(async (item) => {
+    const blob = await loadBlob(item.ev.id);
+    if (blob && !item.downloadUrl) trackBlobUrl(room, item, blob);
+  }));
+}
+
+async function loadHistoryIfNeeded(room) {
+  if (room.historyLoaded) return;
+  room.historyLoaded = true;
+  const saved = await loadRoomEvents(room.id);
+  for (const rec of saved) {
+    if (room.seen.has(rec.id)) continue;
+    room.seen.add(rec.id);
+    if (rec.fileMeta) {
+      if (Array.isArray(rec.fileMeta.chunkIds)) {
+        for (const chunkId of rec.fileMeta.chunkIds) room.seen.add(chunkId);
+      }
+      if (rec.fileMeta.messageId) {
+        room.fileIds.add(rec.fileMeta.messageId);
+        if (room.events.some(e => e.fileMeta && e.fileMeta.messageId === rec.fileMeta.messageId)) {
+          continue;
+        }
+      }
+    }
+    const ev = {
+      id: rec.id, kind: 1, pubkey: rec.pubkey,
+      created_at: rec.created_at, content: '', tags: [],
+    };
+    const recalled = !!rec.recalled || room.recalledIds.has(rec.id);
+    const item = {
+      ev, text: recalled ? null : rec.content, failed: !!rec.failed,
+      fileError: rec.fileError || null,
+      senderName: rec.senderName || null,
+      fileMeta: rec.fileMeta || null,
+      fileProgress: rec.fileMeta ? 1 : undefined,
+      status: rec.status ?? (rec.pubkey === myPub ? 'ok' : undefined),
+      displayPubkey: rec.pubkey,
+      recalled,
+      transferState: rec.fileMeta ? 'expired' : undefined,
+    };
+    if (item.fileMeta && !recalled) {
+      const blob = await loadBlob(rec.id);
+      if (blob) {
+        trackBlobUrl(room, item, blob);
+        item.transferState = 'ok';
+      }
+    }
+    room.events.push(item);
+    room.lastActivity = Math.max(room.lastActivity || 0, ev.created_at);
+    if (recalled) {
+      if (rec.fileMeta) room.lastPreview = '[文件] ' + (rec.fileMeta.filename || '');
+      else if (rec.content) room.lastPreview = String(rec.content).slice(0, 60);
+    } else if (rec.fileMeta) {
+      room.lastPreview = '[文件] ' + (rec.fileMeta.filename || '');
+    } else if (rec.content) {
+      room.lastPreview = String(rec.content).slice(0, 60);
+    }
+    if (recalled && !rec.recalled) {
+      persistEvent(room.id, { ...item, text: null, fileMeta: item.fileMeta }).catch(() => {});
+    }
+  }
+  room.events.sort((a, b) => a.ev.created_at - b.ev.created_at);
+}
+
+let globalDMSub = null;
+
+function ensureSubscription(room) {
+  if (room.sub) return;
+  if (room.type === 'dm') {
+    if (!globalDMSub) {
+      globalDMSub = state.pool.subscribeMany(
+        RELAYS,
+        { kinds: [1059], '#p': [myPub], limit: 500 },
+        {
+          onevent: ev => { routeDM(ev).catch(() => {}); },
+          oneose: () => { updateConnUI(); },
+        }
+      );
+    }
+    room.sub = { close: () => {} };
+  } else {
+    const since = room.lastActivity || 0;
+    room.sub = state.pool.subscribeMany(
+      RELAYS,
+      { kinds: [1, 5], '#t': [room.id], ...(since ? { since } : {}), limit: 500 },
+      {
+        onevent: ev => handleIncomingGroup(room, ev),
+        oneose: () => { updateConnUI(); },
+      }
+    );
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   接收：群聊
+   ══════════════════════════════════════════════════════ */
+async function handleIncomingGroup(room, ev) {
+  if (room.seen.has(ev.id)) return;
+  room.seen.add(ev.id);
+  room.lastActivity = Math.max(room.lastActivity || 0, ev.created_at);
+
+  if (ev.kind === 5) {
+    let plaintext = ev.content || '';
+    if (room.encrypted && room.key && plaintext) {
+      try { plaintext = await decryptText(room.key, plaintext); } catch { /* 忽略原因文本 */ }
+    }
+    const targets = (ev.tags || []).filter(t => t[0] === 'e' && t[1]).map(t => t[1]);
+    if (targets.length) await applyRecall(room, targets, ev.pubkey);
+    return;
+  }
+
+  if (!ev.content) return;
+  rememberPeerAvatar(ev.pubkey, ev.tags);
+
+  const item = {
+    ev, text: null, failed: false, senderName: null,
+    fileMeta: null, status: ev.pubkey === myPub ? 'ok' : undefined,
+    displayPubkey: ev.pubkey,
+    recalled: room.recalledIds.has(ev.id),
+  };
+  const nameTag = ev.tags.find(t => t[0] === 'name');
+  if (nameTag) item.senderName = nameTag[1];
+
+  let plaintext = ev.content;
+  if (room.encrypted) {
+    if (!room.key) {
+      if (item.recalled) {
+        room.events.push(item);
+        if (state.activeRoom === room.id) scheduleRender();
+        else room.unread = (room.unread || 0) + 1;
+        scheduleRoomList();
+        persistEvent(room.id, item).catch(() => {});
+        return;
+      }
+      item.text = null;
+      item.failed = false;
+      room.events.push(item);
+      room.lastPreview = '[加密消息]';
+      if (state.activeRoom === room.id) scheduleRender();
+      else room.unread = (room.unread || 0) + 1;
+      scheduleRoomList();
+      return;
+    }
+    try { plaintext = await decryptText(room.key, ev.content); }
+    catch {
+      item.failed = true;
+      room.events.push(item);
+      if (state.activeRoom === room.id) scheduleRender();
+      else room.unread = (room.unread || 0) + 1;
+      scheduleRoomList();
+      return;
+    }
+  }
+
+  const needPayload = tryParseFileNeed(plaintext);
+  const filePayload = needPayload ? null : tryParseFilePayload(plaintext);
+
+  if (item.recalled) {
+    if (filePayload || needPayload) return;
+    room.events.push(item);
+    if (state.activeRoom === room.id) scheduleRender();
+    else room.unread = (room.unread || 0) + 1;
+    scheduleRoomList();
+    persistEvent(room.id, item).catch(() => {});
+    return;
+  }
+
+  if (needPayload) {
+    handleFileNeed(room, needPayload, ev).catch(() => {});
+    return;
+  }
+
+  if (filePayload) {
+    ingestFileChunk(room, filePayload, ev);
+    return;
+  }
+
+  item.text = plaintext;
+  room.lastPreview = String(plaintext).slice(0, 60);
+  room.events.push(item);
+  if (state.activeRoom === room.id) scheduleRender();
+  else { room.unread = (room.unread || 0) + 1; scheduleRoomList(); }
+  persistEvent(room.id, item);
+  scheduleRoomList();
+}
+
+/* ══════════════════════════════════════════════════════
+   接收：DM
+   ══════════════════════════════════════════════════════ */
+async function routeDM(ev) {
+  let rumor;
+  try {
+    rumor = await getOrUnwrapDM(ev);
+  } catch {
+    return;
+  }
+  const senderPub = rumor.pubkey;
+  for (const r of state.rooms.values()) {
+    if (r.type === 'dm' && r.peerPub === senderPub) {
+      await loadHistoryIfNeeded(r);
+      await handleIncomingDMRumor(r, ev, rumor);
+    }
+  }
+}
+
+async function handleIncomingDMRumor(room, ev, rumor) {
+  if (room.seen.has(ev.id) || (rumor.id && room.seen.has(rumor.id))) return;
+  room.seen.add(ev.id);
+  if (rumor.id) room.seen.add(rumor.id);
+
+  const senderPub = rumor.pubkey;
+  room.lastActivity = Math.max(room.lastActivity || 0, rumor.created_at);
+
+  if (rumor.kind === 5) {
+    const targets = (rumor.tags || []).filter(t => t[0] === 'e' && t[1]).map(t => t[1]);
+    if (targets.length) await applyRecall(room, targets, rumor.pubkey);
+    return;
+  }
+
+  rememberPeerAvatar(senderPub, rumor.tags);
+
+  const displayId = rumor.id || ev.id;
+  const item = {
+    ev: {
+      id: displayId, kind: rumor.kind, pubkey: senderPub,
+      created_at: rumor.created_at, content: '', tags: rumor.tags || [],
+    },
+    wrapIds: [ev.id],
+    text: null, failed: false,
+    senderName: rumor.tags?.find(t => t[0] === 'name')?.[1] || senderPub.slice(0, 8),
+    fileMeta: null, status: 'ok',
+    displayPubkey: senderPub,
+    recalled: room.recalledIds.has(displayId) || room.recalledIds.has(ev.id),
+  };
+
+  const needPayload = tryParseFileNeed(rumor.content);
+  const filePayload = needPayload ? null : tryParseFilePayload(rumor.content);
+
+  if (item.recalled) {
+    if (filePayload || needPayload) return;
+    room.events.push(item);
+    if (state.activeRoom === room.id) scheduleRender();
+    else room.unread = (room.unread || 0) + 1;
+    scheduleRoomList();
+    persistEvent(room.id, item).catch(() => {});
+    return;
+  }
+
+  if (needPayload) {
+    handleFileNeed(room, needPayload, item.ev).catch(() => {});
+    return;
+  }
+
+  if (filePayload) {
+    ingestFileChunk(room, filePayload, item.ev);
+    return;
+  }
+
+  item.text = rumor.content;
+  room.lastPreview = String(rumor.content).slice(0, 60);
+  room.events.push(item);
+  if (state.activeRoom === room.id) scheduleRender();
+  else { room.unread = (room.unread || 0) + 1; scheduleRoomList(); }
+  persistEvent(room.id, item);
+  scheduleRoomList();
+}
+
+let dmHistoryFetching = false;
+async function fetchDMHistory() {
+  if (dmHistoryFetching) return;
+  dmHistoryFetching = true;
+  try {
+    const events = await state.pool.querySync(
+      RELAYS,
+      { kinds: [1059], '#p': [myPub], limit: 500 },
+      { maxWait: 4000 }
+    );
+    events.sort((a, b) => a.created_at - b.created_at);
+    for (const ev of events) {
+      await routeDM(ev);
+    }
+  } catch { /* 静默 */ }
+  finally { dmHistoryFetching = false; }
+}
+
+/* ══════════════════════════════════════════════════════
+   文件分片：接收
+   ══════════════════════════════════════════════════════ */
+const fileBuffers = new Map();
+const fileTimers = new Map();
+
+function fileKey(room, messageId) {
+  return `${myPub}:${room.id}:${messageId}`;
+}
+
+function armFileTimeout(key, room) {
+  clearTimeout(fileTimers.get(key));
+  const buf0 = fileBuffers.get(key);
+  if (!buf0) return;
+  fileTimers.set(key, setTimeout(() => {
+    const buf = fileBuffers.get(key);
+    if (!buf) { fileTimers.delete(key); return; }
+    if (buf.chunks.size >= buf.meta.total) { fileTimers.delete(key); return; }
+    if (buf.retryCount < FILE_RX_RETRY_LIMIT && Date.now() - buf.startedAt < FILE_RX_MAX_WAIT) {
+      buf.retryCount++;
+      buf.itemRef.failed = false;
+      buf.itemRef.fileError = null;
+      buf.itemRef.transferState = 'waiting';
+      buf.itemRef.fileProgress = buf.chunks.size / buf.meta.total;
+      if (state.activeRoom === room.id) updateFileTransferDom(buf.itemRef);
+      else scheduleRoomList();
+      requestMissingChunks(room, buf).catch(() => {});
+      armFileTimeout(key, room);
+      return;
+    }
+    buf.itemRef.failed = true;
+    buf.itemRef.fileError = 'timeout';
+    buf.itemRef.transferState = 'timeout';
+    buf.itemRef.fileProgress = buf.chunks.size / buf.meta.total;
+    buf.itemRef.fileMeta.chunkIds = [...buf.seenChunkIds];
+    buf.itemRef.status = undefined;
+    fileTimers.delete(key);
+    if (state.activeRoom === room.id) scheduleRender();
+    scheduleRoomList();
+    persistEvent(room.id, { ...buf.itemRef, text: null, fileMeta: buf.itemRef.fileMeta }).catch(() => {});
+  }, FILE_RX_TIMEOUT));
+}
+
+function requestMissingChunks(room, buf) {
+  const now = Date.now();
+  if (now - (buf.lastRequestAt || 0) < 8000) return Promise.resolve(false);
+  if (buf.requesting) return Promise.resolve(false);
+  const missing = [];
+  for (let i = 0; i < buf.meta.total && missing.length < 400; i++) {
+    if (!buf.chunks.has(i)) missing.push(i);
+  }
+  if (!missing.length) return Promise.resolve(false);
+  buf.lastRequestAt = now;
+  buf.requesting = true;
+  return sendControlPayload(room, { _ef_need: 1, messageId: buf.meta.messageId, missing })
+    .finally(() => { buf.requesting = false; });
+}
+
+function ingestFileChunk(room, payload, sourceEv) {
+  const { messageId, index, total, filename, mime, size, engine, compressed, encrypted, payloadHash, data } = payload;
+
+  if (typeof total !== 'number' || !Number.isInteger(total) || total < 1 || total > MAX_CHUNKS) return;
+  if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= total) return;
+  if (typeof size !== 'number' || size < 0 || size > MAX_FILE_BYTES) return;
+  if (typeof messageId !== 'string' || messageId.length > 128) return;
+  if (typeof data !== 'string' || data.length > Math.ceil(CHUNK_SIZE / 3) * 4 + 16) return;
+  if (room.recalledIds.has(sourceEv.id)) return;
+
+  const complete = room.events.some(i =>
+    i.fileMeta && i.fileMeta.messageId === messageId && i.fileProgress === 1 && !i.failed
+  );
+  if (complete && !fileBuffers.has(fileKey(room, messageId))) return;
+
+  const key = fileKey(room, messageId);
+
+  if (!fileBuffers.has(key)) {
+    room.fileIds.add(messageId);
+    rememberPeerAvatar(sourceEv.pubkey, sourceEv.tags);
+    const item = {
+      ev: {
+        id: sourceEv.id, kind: sourceEv.kind || 1, pubkey: sourceEv.pubkey,
+        created_at: sourceEv.created_at,
+        content: '', tags: sourceEv.tags || [],
+      },
+      text: null, failed: false,
+      senderName: sourceEv.tags?.find(t => t[0] === 'name')?.[1] || (sourceEv.pubkey || '').slice(0, 8),
+      fileMeta: { filename, mime, size, engine: engine || 'none', messageId, chunkIds: [] },
+      fileProgress: 0,
+      transferState: 'receiving',
+      displayPubkey: sourceEv.pubkey,
+      recalled: false,
+    };
+    room.events.push(item);
+    room.lastPreview = '[文件] ' + (filename || '');
+    fileBuffers.set(key, {
+      meta: { filename, mime, size, total, engine: engine || 'none', compressed, encrypted, payloadHash, messageId },
+      chunks: new Map(),
+      itemRef: item,
+      room,
+      seenChunkIds: new Set(),
+      startedAt: Date.now(),
+      retryCount: 0,
+      lastRequestAt: 0,
+      requesting: false,
+    });
+    if (state.activeRoom === room.id) scheduleRender();
+    else { room.unread = (room.unread || 0) + 1; scheduleRoomList(); }
+    scheduleRoomList();
+  }
+
+  const buf = fileBuffers.get(key);
+  if (buf.seenChunkIds.has(sourceEv.id)) return;
+  buf.seenChunkIds.add(sourceEv.id);
+  buf.chunks.set(index, data);
+  buf.itemRef.fileMeta.chunkIds = [...buf.seenChunkIds];
+  buf.itemRef.transferState = 'receiving';
+  buf.itemRef.failed = false;
+  buf.itemRef.fileError = null;
+  setFileProgress(buf.itemRef, buf.chunks.size / total, 'receiving');
+  armFileTimeout(key, room);
+
+  if (buf.chunks.size === total) {
+    const ordered = [];
+    for (let i = 0; i < total; i++) {
+      if (!buf.chunks.has(i)) return;
+      ordered.push(buf.chunks.get(i));
+    }
+    clearTimeout(fileTimers.get(key));
+    fileTimers.delete(key);
+    fileBuffers.delete(key);
+    finalizeFileInUI(room, key, buf.meta, ordered, buf.itemRef, [...buf.seenChunkIds]);
+  }
+}
+
+async function finalizeFileInUI(room, key, meta, orderedB64, itemRef, chunkIds) {
+  itemRef.fileMeta.chunkIds = chunkIds || [];
+  itemRef.transferState = 'verifying';
+  if (state.activeRoom === room.id) updateFileTransferDom(itemRef);
+  try {
+    const parts = orderedB64.map(b64decode);
+    const totalLength = parts.reduce((n, p) => n + p.length, 0);
+    const transmitted = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const part of parts) {
+      transmitted.set(part, offset);
+      offset += part.length;
+    }
+    const hash = await sha256Hex(transmitted);
+    if (meta.payloadHash && hash !== meta.payloadHash) throw new Error('hash mismatch');
+    const raw = await restoreFromTransmitted(transmitted, room, meta.compressed, meta.encrypted, meta.engine);
+    const blob = new Blob([raw], { type: meta.mime || 'application/octet-stream' });
+    trackBlobUrl(room, itemRef, blob);
+    itemRef.fileProgress = 1;
+    itemRef.transferState = 'ok';
+    itemRef.failed = false;
+    itemRef.fileError = null;
+    itemRef.status = 'ok';
+    await persistBlob(itemRef.ev.id, blob);
+  } catch {
+    itemRef.failed = true;
+    itemRef.fileError = 'corrupt';
+    itemRef.fileProgress = 1;
+    itemRef.transferState = 'fail';
+    itemRef.status = undefined;
+  }
+  if (state.activeRoom === room.id) scheduleRender();
+  persistEvent(room.id, { ...itemRef, text: null, fileMeta: itemRef.fileMeta });
+}
+
+/* ══════════════════════════════════════════════════════
+   文件分片：发送
+   ══════════════════════════════════════════════════════ */
+async function pMapLimit(items, limit, fn) {
+  const ret = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      ret[idx] = await fn(items[idx], idx);
+    }
+  });
+  await Promise.all(workers);
+  return ret;
+}
+
+function publishEvent(ev, timeout = PUBLISH_TIMEOUT) {
+  return new Promise(resolve => {
+    const results = [];
+    let pending = 0;
+    let settled = false;
+    let timer = null;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(results);
+    };
+
+    let promises;
+    try {
+      promises = state.pool.publish(RELAYS, ev);
+    } catch {
+      return resolve(results);
+    }
+    if (!promises.length) return resolve(results);
+
+    pending = promises.length;
+    timer = setTimeout(finish, timeout);
+
+    promises.forEach((p, i) => {
+      Promise.resolve(p).then(value => {
+        results[i] = { status: 'fulfilled', value };
+        if (isPublishOk(results[i])) finish();
+      }, reason => {
+        results[i] = { status: 'rejected', reason };
+      }).finally(() => {
+        pending--;
+        if (pending === 0) finish();
+      });
+    });
+  });
+}
+
+function isPublishOk(result) {
+  if (result.status !== 'fulfilled') return false;
+  const val = result.value;
+  if (typeof val !== 'string') return true;
+  const lower = val.toLowerCase();
+  if (lower.startsWith('connection failure')) return false;
+  if (lower.startsWith('blocked:')) return false;
+  if (lower.startsWith('invalid:')) return false;
+  if (lower.startsWith('rate-limited:')) return false;
+  if (lower.startsWith('error:')) return false;
+  if (lower.startsWith('pow:')) return false;
+  return true;
+}
+
+async function publishWithRetry(ev, attempts = PUBLISH_ATTEMPTS) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const results = await publishEvent(ev);
+    if (results.some(isPublishOk)) return true;
+    if (attempt < attempts - 1) {
+      await new Promise(r => setTimeout(r, 350 * (attempt + 1) + Math.random() * 250));
+    }
+  }
+  return false;
+}
+
+const sentFileCache = new Map();
+
+function sentFileKey(roomId, messageId) {
+  return `${roomId}:${messageId}`;
+}
+
+function cleanupSentFileCache() {
+  const cutoff = Date.now() - FILE_CACHE_TTL;
+  for (const [key, entry] of sentFileCache) {
+    if (entry.createdAt < cutoff) sentFileCache.delete(key);
+  }
+}
+setInterval(cleanupSentFileCache, 60 * 1000);
+
+async function sendControlPayload(room, obj) {
+  const text = JSON.stringify(obj);
+  let ev;
+  if (room.type === 'dm') {
+    ev = await wrapDM(room.peerPub, {
+      kind: 1,
+      content: text,
+      tags: [['name', state.myName || 'anonymous']],
+      created_at: Math.floor(Date.now() / 1000),
+    });
+  } else {
+    const content = room.key ? await encryptText(room.key, text) : text;
+    ev = finalizeEvent({
+      kind: 1,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['t', room.id], ['name', state.myName || 'anonymous']],
+      content,
+    }, sk);
+  }
+  if (room.seen) room.seen.add(ev.id);
+  return publishWithRetry(ev, 2);
+}
+
+async function handleFileNeed(room, payload, sourceEv) {
+  const cache = await getSentFileCache(room.id, payload.messageId);
+  if (!cache) return;
+  const indices = payload.missing.filter(i => i >= 0 && i < cache.events.length && cache.events[i]);
+  if (!indices.length) return;
+  await pMapLimit(indices, 2, async (i) => {
+    if (!cache.events[i]) return;
+    await publishWithRetry(cache.events[i], 2);
+  });
+}
+
+async function retryFileSend(messageId) {
+  const room = state.rooms.get(state.activeRoom);
+  if (!room) return;
+  const item = room.events.find(i => i.fileMeta && i.fileMeta.messageId === messageId);
+  const cache = await getSentFileCache(room.id, messageId);
+  if (!item || !cache) {
+    showToast('重试缓存已过期，请重新发送文件');
+    return;
+  }
+  item.status = 'pending';
+  item.failed = false;
+  item.fileError = null;
+  item.transferState = 'sending';
+  updateFileTransferDom(item);
+  const pendingIds = [...cache.missing];
+  let done = 0;
+  await pMapLimit(pendingIds, CHUNK_CONCURRENCY, async (i) => {
+    const ev = cache.events[i];
+    if (!ev) return;
+    const ok = await publishWithRetry(ev, PUBLISH_ATTEMPTS);
+    if (ok) {
+      cache.missing.delete(i);
+      cache.okCount++;
+    }
+    done++;
+    item.fileProgress = cache.okCount / cache.total;
+    if (state.activeRoom === room.id) updateFileTransferDom(item);
+  });
+  if (cache.missing.size === 0) {
+    item.status = 'ok';
+    item.transferState = 'ok';
+    item.fileProgress = 1;
+    item.failed = false;
+    item.fileError = null;
+    trackBlobUrl(room, item, cache.file);
+    await persistBlob(item.ev.id, cache.file);
+    showToast('文件已补发完成');
+  } else {
+    item.status = 'fail';
+    item.transferState = 'fail';
+    showToast(`仍有 ${cache.missing.size} 个分片未送达`);
+  }
+  if (state.activeRoom === room.id) scheduleRender();
+  persistEvent(room.id, { ...item, text: null, fileMeta: item.fileMeta });
+}
+
+async function sendFile(file) {
+  const room = state.rooms.get(state.activeRoom);
+  if (!room) return;
+
+  if (room.type === 'group' && room.encrypted && !room.key) {
+    showToast('请先输入房间密码解锁');
+    return;
+  }
+
+  if (file.size > MAX_FILE_BYTES) {
+    showToast(`文件 ${formatSize(file.size)} 超过 ${formatSize(MAX_FILE_BYTES)} 上限`);
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast(`正在发送 ${formatSize(file.size)} 文件，请保持页面打开`);
+  }
+
+  const { bytes, compressed, encrypted, engine } = await prepareFileBytes(file, room);
+  const payloadHash = await sha256Hex(bytes);
+  const chunkSize = room.type === 'dm'
+    ? CHUNK_SIZE_DM
+    : (room.key ? CHUNK_SIZE_ENCRYPTED : CHUNK_SIZE);
+  const totalChunks = Math.max(1, Math.ceil(bytes.length / chunkSize));
+  if (totalChunks > MAX_CHUNKS) { showToast('文件过大，分片数超限'); return; }
+  const messageId = crypto.randomUUID();
+  room.fileIds.add(messageId);
+  const firstCreatedAt = Math.floor(Date.now() / 1000);
+
+  const localItem = {
+    ev: {
+      id: 'local-' + messageId, kind: 1, pubkey: myPub,
+      created_at: firstCreatedAt, content: '', tags: [],
+    },
+    text: null, failed: false,
+    senderName: state.myName,
+    fileMeta: { filename: file.name, mime: file.type || 'application/octet-stream', size: file.size, engine, messageId, chunkIds: [] },
+    fileProgress: 0,
+    transferState: 'sending',
+    status: 'pending',
+    displayPubkey: myPub,
+    recalled: false,
+  };
+  room.events.push(localItem);
+  room.seen.add('local-' + messageId);
+  room.lastActivity = firstCreatedAt;
+  room.lastPreview = '[文件] ' + file.name;
+  if (state.activeRoom === room.id) scheduleRender();
+  scheduleRoomList();
+
+  const chunkEvents = new Array(totalChunks);
+  for (let i = 0; i < totalChunks; i++) {
+    const slice = bytes.slice(i * chunkSize, (i + 1) * chunkSize);
+    const json = JSON.stringify({
+      _ef_file: 1, messageId, index: i, total: totalChunks,
+      filename: file.name, mime: file.type || 'application/octet-stream',
+      size: file.size, engine, compressed, encrypted, payloadHash,
+      data: b64encode(slice),
+    });
+    if (room.type === 'dm') {
+      chunkEvents[i] = await wrapDM(room.peerPub, {
+        kind: 1,
+        content: json,
+        tags: [['name', state.myName || 'anonymous']],
+        created_at: Math.floor(Date.now() / 1000),
+      });
+    } else {
+      const content = room.key ? await encryptText(room.key, json) : json;
+      chunkEvents[i] = finalizeEvent({
+        kind: 1,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['t', room.id], ['name', state.myName || 'anonymous']],
+        content,
+      }, sk);
+    }
+    room.seen.add(chunkEvents[i].id);
+    if (chunkEvents[i].rumorId) room.seen.add(chunkEvents[i].rumorId);
+  }
+
+  const cache = {
+    roomId: room.id,
+    messageId,
+    total: totalChunks,
+    events: chunkEvents,
+    missing: new Set(chunkEvents.map((_, i) => i)),
+    okCount: 0,
+    createdAt: Date.now(),
+    file,
+    itemRef: localItem,
+  };
+  sentFileCache.set(sentFileKey(room.id, messageId), cache);
+  await persistSentFileCache(cache);
+  localItem.fileMeta.chunkIds = chunkEvents.map(e => e.rumorId || e.id);
+
+  await pMapLimit(chunkEvents, CHUNK_CONCURRENCY, async (ev, i) => {
+    const ok = await publishWithRetry(ev, PUBLISH_ATTEMPTS);
+    if (ok) {
+      cache.missing.delete(i);
+      cache.okCount++;
+    }
+    localItem.fileProgress = cache.okCount / totalChunks;
+    if (state.activeRoom === room.id) updateFileTransferDom(localItem);
+  });
+
+  const firstEvId = chunkEvents.find(Boolean)?.rumorId || chunkEvents.find(Boolean)?.id;
+  const firstEvAt = chunkEvents.find(Boolean)?.created_at;
+  if (firstEvId) localItem.ev.id = firstEvId;
+  if (typeof firstEvAt === 'number') localItem.ev.created_at = firstEvAt;
+  if (room.type === 'dm') localItem.wrapIds = chunkEvents.map(e => e.id);
+  room.lastActivity = Math.max(room.lastActivity || 0, localItem.ev.created_at);
+
+  if (cache.missing.size === 0) {
+    localItem.fileProgress = 1;
+    localItem.transferState = 'ok';
+    localItem.status = 'ok';
+    localItem.failed = false;
+    localItem.fileError = null;
+  } else {
+    localItem.status = 'fail';
+    localItem.transferState = 'fail';
+    localItem.fileProgress = cache.okCount / totalChunks;
+    showToast(`${cache.missing.size} 个分片未送达，可点击文件卡片上的“重试”`);
+  }
+  trackBlobUrl(room, localItem, file);
+  await persistBlob(localItem.ev.id, file);
+
+  if (state.activeRoom === room.id) scheduleRender();
+  persistEvent(room.id, { ...localItem, text: null, fileMeta: localItem.fileMeta });
+}
+
+/* ══════════════════════════════════════════════════════
+   发送文本
+   ══════════════════════════════════════════════════════ */
+async function sendMessage() {
+  const room = state.rooms.get(state.activeRoom);
+  const text = msgInput.value.trim();
+  if (!room || !text) return;
+
+  if (room.type === 'group' && room.encrypted && !room.key) {
+    showToast('请先输入房间密码解锁');
+    return;
+  }
+
+  msgInput.value = ''; msgInput.style.height = 'auto'; sendBtn.disabled = true;
+
+  const localCreatedAt = Math.floor(Date.now() / 1000);
+  const item = {
+    ev: {
+      id: 'local-' + crypto.randomUUID(), kind: 1, pubkey: myPub,
+      created_at: localCreatedAt, content: '', tags: [],
+    },
+    text, failed: false, senderName: state.myName, fileMeta: null,
+    status: 'pending',
+    displayPubkey: myPub,
+    recalled: false,
+  };
+
+  try {
+    const atag = avatarTag();
+    let ev;
+    if (room.type === 'dm') {
+      ev = await wrapDM(room.peerPub, {
+        kind: 1,
+        content: text,
+        tags: [['name', state.myName || 'anonymous'], ...atag],
+        created_at: localCreatedAt,
+      });
+    } else {
+      const content = room.key ? await encryptText(room.key, text) : text;
+      ev = finalizeEvent({
+        kind: 1,
+        created_at: localCreatedAt,
+        tags: [['t', room.id], ['name', state.myName || 'anonymous'], ...atag],
+        content,
+      }, sk);
+    }
+
+    item.ev = ev;
+    if (room.type === 'dm') {
+      item.ev.id = ev.rumorId || ev.id;
+      item.ev.created_at = localCreatedAt;
+      item.wrapIds = [ev.id];
+    }
+    item.displayPubkey = myPub;
+    room.seen.add(ev.id);
+    if (item.ev.id !== ev.id) room.seen.add(item.ev.id);
+
+    const ok = await publishWithRetry(ev, PUBLISH_ATTEMPTS);
+    item.status = ok ? 'ok' : 'fail';
+    if (!ok) showToast('消息未送达，请检查网络后重试');
+
+    room.events.push(item);
+    room.lastActivity = Math.max(room.lastActivity || 0, ev.created_at);
+    room.lastPreview = text.slice(0, 60);
+    if (state.activeRoom === room.id) scheduleRender();
+    else scheduleRoomList();
+    persistEvent(room.id, item);
+    scheduleRoomList();
+  } catch {
+    item.status = 'fail';
+    room.events.push(item);
+    room.lastPreview = text.slice(0, 60);
+    if (state.activeRoom === room.id) scheduleRender();
+    flashGlitch();
+    persistEvent(room.id, item).catch(() => {});
+    scheduleRoomList();
+  } finally {
+    sendBtn.disabled = false; msgInput.focus();
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   连接状态
+   ══════════════════════════════════════════════════════ */
+function updateConnUI() {
+  const room = state.rooms.get(state.activeRoom);
+  connDot.classList.toggle('offline', !room || !room.sub);
+  if (sideMeNameEl) sideMeNameEl.textContent = state.myName || '未登录';
+  if (sideMePubEl) sideMePubEl.textContent = myPub ? myPub.slice(0, 10) + '…' : '—';
+  updateAvatarUI();
+  if (room) updateRoomHeader(room);
+}
+
+function updateRoomHeader(room) {
+  if (!room) {
+    roomTitleEl.textContent = '选择一个会话';
+    roomSubEl.textContent = '打开左侧会话列表开始聊天';
+    return;
+  }
+  roomTitleEl.textContent = room.label;
+  if (room.type === 'dm') {
+    roomSubEl.textContent = `私聊 · ${(room.peerPub || '').slice(0, 8)} · 端到端加密`;
+  } else if (room.encrypted) {
+    roomSubEl.textContent = '加密群聊 · 房间密码保护';
+  } else if (room.label === '大厅') {
+    roomSubEl.textContent = '公开大厅 · 未加密';
+  } else {
+    roomSubEl.textContent = '公开群聊 · 未加密';
+  }
+}
+
+function canRecallItem(item) {
+  if (!item || item.recalled) return false;
+  if ((item.displayPubkey || item.ev.pubkey) !== myPub) return false;
+  if (String(item.ev.id).startsWith('local-')) return false;
+  const age = Date.now() - item.ev.created_at * 1000;
+  return age >= 0 && age <= RECALL_WINDOW + 5000;
+}
+
+function closeMsgMenu() {
+  msgMenuEl.classList.add('hidden');
+  menuTargetItem = null;
+}
+
+function openMsgMenu(item, x, y) {
+  if (!item) return;
+  menuTargetItem = item;
+  const recallBtn = msgMenuEl.querySelector('[data-action="recall"]');
+  const copyBtn = msgMenuEl.querySelector('[data-action="copy"]');
+  if (copyBtn) copyBtn.disabled = !item.text;
+  if (recallBtn) recallBtn.disabled = !canRecallItem(item);
+  msgMenuEl.classList.remove('hidden');
+  const rect = msgMenuEl.getBoundingClientRect();
+  const left = Math.min(Math.max(8, x), window.innerWidth - rect.width - 8);
+  const top = Math.min(Math.max(8, y), window.innerHeight - rect.height - 8);
+  msgMenuEl.style.left = left + 'px';
+  msgMenuEl.style.top = top + 'px';
+}
+
+msgMenuEl.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn || btn.disabled) return;
+  const action = btn.dataset.action;
+  const item = menuTargetItem;
+  closeMsgMenu();
+  if (!item) return;
+  if (action === 'copy' && item.text) {
+    try { await navigator.clipboard.writeText(item.text); showToast('已复制'); }
+    catch { showToast('复制失败'); }
+  } else if (action === 'recall') {
+    await recallMessage(item);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!msgMenuEl.classList.contains('hidden') && !msgMenuEl.contains(e.target)) closeMsgMenu();
+});
+messagesEl.addEventListener('scroll', () => {
+  if (!msgMenuEl.classList.contains('hidden')) closeMsgMenu();
+}, { passive: true });
+
+async function publishRecall(room, ids) {
+  const tags = [...ids].map(id => ['e', id]);
+  tags.push(['k', '1']);
+  if (room.type === 'dm') {
+    const ev = await wrapDM(room.peerPub, {
+      kind: 5,
+      content: '',
+      tags,
+      created_at: Math.floor(Date.now() / 1000),
+    });
+    room.seen.add(ev.id);
+    return publishWithRetry(ev, 2);
+  }
+  const ev = finalizeEvent({
+    kind: 5,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [...tags, ['t', room.id]],
+    content: '',
+  }, sk);
+  room.seen.add(ev.id);
+  return publishWithRetry(ev, 2);
+}
+
+async function recallMessage(item) {
+  const room = state.rooms.get(state.activeRoom);
+  if (!room || !canRecallItem(item)) {
+    showToast('超过 2 分钟的消息不能撤回');
+    return;
+  }
+  const ids = new Set([item.ev.id]);
+  if (item.fileMeta && Array.isArray(item.fileMeta.chunkIds)) {
+    for (const id of item.fileMeta.chunkIds) ids.add(id);
+  }
+  await applyRecall(room, [...ids], myPub);
+  showToast('已撤回');
+  const ok = await publishRecall(room, ids).catch(() => false);
+  if (!ok) showToast('撤回请求未送达，但本机已隐藏');
+}
+
+async function applyRecall(room, ids, byPubkey) {
+  if (!room || !ids || !ids.length) return;
+  persistRecallTargets(room, ids);
+  let changed = false;
+  for (const item of room.events) {
+    if (byPubkey && (item.displayPubkey || item.ev.pubkey) !== byPubkey) continue;
+    const chunkHit = item.fileMeta && Array.isArray(item.fileMeta.chunkIds)
+      && item.fileMeta.chunkIds.some(id => ids.includes(id));
+    const wrapHit = Array.isArray(item.wrapIds) && item.wrapIds.some(id => ids.includes(id));
+    if (!ids.includes(item.ev.id) && !chunkHit && !wrapHit) continue;
+    if (item.recalled) continue;
+    item.recalled = true;
+    item.text = null;
+    item.failed = false;
+    item.fileError = null;
+    item.transferState = undefined;
+    if (item.downloadUrl) {
+      try { URL.revokeObjectURL(item.downloadUrl); } catch { /* 忽略 */ }
+      item.downloadUrl = null;
+    }
+    const blobIds = new Set([item.ev.id, ...(item.fileMeta?.chunkIds || [])]);
+    for (const id of blobIds) deleteBlob(id).catch(() => {});
+    changed = true;
+    persistEvent(room.id, { ...item, text: null, fileMeta: item.fileMeta }).catch(() => {});
+  }
+
+  for (const [key, buf] of [...fileBuffers.entries()]) {
+    if (buf.room !== room) continue;
+    const hit = ids.includes(buf.itemRef.ev.id) || [...buf.seenChunkIds].some(id => ids.includes(id));
+    if (!hit) continue;
+    clearTimeout(fileTimers.get(key));
+    fileTimers.delete(key);
+    fileBuffers.delete(key);
+    buf.itemRef.recalled = true;
+    buf.itemRef.text = null;
+    buf.itemRef.failed = false;
+    buf.itemRef.fileError = null;
+    changed = true;
+    persistEvent(room.id, { ...buf.itemRef, text: null, fileMeta: buf.itemRef.fileMeta }).catch(() => {});
+  }
+
+  if (changed) {
+    if (state.activeRoom === room.id) scheduleRender();
+    scheduleRoomList();
+  }
+}
+function flashGlitch() {
+  messagesEl.classList.add('glitch-once');
+  setTimeout(() => messagesEl.classList.remove('glitch-once'), 300);
+}
+
+/* ══════════════════════════════════════════════════════
+   房间创建 / 加入
+   ══════════════════════════════════════════════════════ */
+async function createRoom({ id, label, type, password, encrypted, verifier, convKey, peerPub, skipSwitch }) {
+  if (state.rooms.has(id)) {
+    if (!skipSwitch) await switchRoom(id);
+    return;
+  }
+  const room = {
+    id, label, type,
+    encrypted: !!encrypted,
+    verifier: verifier || null,
+    key: null,
+    convKey: convKey || null,
+    peerPub: peerPub || null,
+    events: [], seen: new Set(), fileIds: new Set(), blobUrls: new Set(), sub: null,
+    recalledIds: loadRecallTargets(id),
+    lastPreview: '',
+    unread: 0, lastActivity: 0, historyLoaded: false,
+  };
+  if (encrypted && password) {
+    room.key = await deriveKey(password, id);
+    room.verifier = await makeRoomVerifier(room.key);
+  }
+  state.rooms.set(id, room);
+  renderRoomList();
+  persistRooms();
+  if (!skipSwitch) await switchRoom(id);
+}
+
+/* 加入群聊：输入房间标识（t 标签值），若有密码则提示输入 */
+async function joinGroupById(rawId, password) {
+  const id = String(rawId || '').trim();
+  if (!id) { showToast('请输入房间标识'); return false; }
+  if (state.rooms.has(id)) {
+    await switchRoom(id);
+    return true;
+  }
+  const room = {
+    id,
+    label: id,
+    type: 'group',
+    encrypted: !!password,
+    verifier: null,
+    key: null,
+    convKey: null,
+    peerPub: null,
+    events: [], seen: new Set(), fileIds: new Set(), blobUrls: new Set(), sub: null,
+    recalledIds: loadRecallTargets(id),
+    lastPreview: '',
+    unread: 0, lastActivity: 0, historyLoaded: false,
+  };
+  if (password) {
+    room.key = await deriveKey(password, id);
+    room.verifier = await makeRoomVerifier(room.key);
+  }
+  state.rooms.set(id, room);
+  renderRoomList();
+  persistRooms();
+  await switchRoom(id);
+  /* 从 relay 拉取最近消息，补全历史 */
+  if (state.pool) {
+    try {
+      const fetched = await state.pool.querySync(
+        RELAYS,
+        { kinds: [1, 5], '#t': [id], limit: 200 },
+        { maxWait: 4000 }
+      );
+      for (const ev of fetched) {
+        await handleIncomingGroup(room, ev);
+      }
+    } catch { /* 离线时忽略 */ }
+  }
+  return true;
+}
+
+/* ══════════════════════════════════════════════════════
+   认证
+   ══════════════════════════════════════════════════════ */
+function showAuthView(view) {
+  authCreateView.classList.add('hidden');
+  authUnlockView.classList.add('hidden');
+  authImportView.classList.add('hidden');
+  authOverlay.classList.remove('hidden');
+  if (view === 'create') authCreateView.classList.remove('hidden');
+  if (view === 'unlock') authUnlockView.classList.remove('hidden');
+  if (view === 'import') authImportView.classList.remove('hidden');
+}
+
+async function bootAfterAuth() {
+  state.pool = new SimplePool({ enablePing: true, enableReconnect: true });
+  loadUISettings();
+  loadPeerAvatars();
+  loadProfile();
+  applyUISettings();
+  updateAvatarUI();
+  await loadSentFileCache();
+
+  let savedRooms = [];
+  try {
+    savedRooms = JSON.parse(localStorage.getItem(roomsStorageKey()) || '[]');
+  } catch { savedRooms = []; }
+
+  if (savedRooms.length) {
+    for (const r of savedRooms) {
+      if (r.type === 'dm' && r.peerPub) {
+        try {
+          const convKey = nip44.v2.utils.getConversationKey(sk, r.peerPub);
+          await createRoom({
+            id: r.id, label: r.label, type: 'dm',
+            convKey, peerPub: r.peerPub, skipSwitch: true,
+          });
+        } catch { /* 跳过 */ }
+      } else {
+        await createRoom({
+          id: r.id, label: r.label, type: r.type,
+          encrypted: r.encrypted || false,
+          verifier: r.verifier || null,
+          password: null, skipSwitch: true,
+        });
+      }
+    }
+  } else {
+    await createRoom({
+      id: sanitizeRoomId('大厅'), label: '大厅', type: 'group',
+      encrypted: false, skipSwitch: true,
+    });
+  }
+
+  renderRoomList();
+  updateConnUI();
+  initSendKeySetting();
+  initImageCompressSetting();
+
+  const lastRoom = localStorage.getItem(LAST_ROOM_KEY + ':' + myPub);
+  const target = lastRoom && state.rooms.has(lastRoom) ? lastRoom : [...state.rooms.keys()][0];
+  if (target) await switchRoom(target);
+
+  const backend = $('storageBackend');
+  if (backend) backend.textContent = storageMode === 'fallback' ? '本地兼容存储' : 'IndexedDB';
+
+  restoreAppDir().catch(() => {});
+  if ([...state.rooms.values()].some(r => r.type === 'dm')) {
+    fetchDMHistory().catch(() => {});
+  }
+}
+
+function persistRooms() {
+  const list = [];
+  for (const r of state.rooms.values()) {
+    list.push({
+      id: r.id, label: r.label, type: r.type,
+      encrypted: r.encrypted,
+      verifier: r.verifier,
+      peerPub: r.peerPub,
+    });
+  }
+  localStorage.setItem(roomsStorageKey(), JSON.stringify(list));
+}
+
+function resetSessionState() {
+  for (const room of state.rooms.values()) {
+    try { room.sub?.close(); } catch { /* 忽略 */ }
+    revokeRoomUrls(room);
+  }
+  state.rooms.clear();
+  state.activeRoom = null;
+  if (globalDMSub) {
+    try { globalDMSub.close(); } catch { /* 忽略 */ }
+    globalDMSub = null;
+  }
+  if (state.pool) {
+    try { state.pool.close(RELAYS); } catch { /* 忽略 */ }
+    state.pool = null;
+  }
+  renderedSignature = null;
+  messagesEl.innerHTML = '';
+  roomListEl.innerHTML = '';
+}
+
+async function enterTerminal() {
+  try {
+    await bootAfterAuth();
+    authOverlay.classList.add('hidden');
+    return true;
+  } catch (e) {
+    console.error('终端启动失败', e);
+    resetSessionState();
+    showAuthView('unlock');
+    $('unlockDesc').textContent =
+      `账户：${state.myName || localStorage.getItem(NAME_KEY) || '未知'}。终端启动失败，请重新输入密码重试。`;
+    $('unlockError').textContent = '启动失败：' + (e && e.message ? e.message : '未知错误');
+    $('unlockPassword').value = '';
+    $('unlockPassword').focus();
+    return false;
+  }
+}
+
+function confirmOverwriteAccount() {
+  const existing = localStorage.getItem(ACCOUNT_KEY);
+  if (!existing) return true;
+  return confirm('本设备已有账户。继续将覆盖当前账户凭证，且不会自动备份。建议先导出 ncryptsec。确定继续？');
+}
+
+$('btnCreateSubmit').onclick = async () => {
+  const username = $('createUsername').value.trim();
+  const password = $('createPassword').value;
+  const confirmPwd = $('createPasswordConfirm').value;
+  const err = $('createError');
+  err.textContent = '';
+  if (!username) { err.textContent = '请填写用户名'; return; }
+  if (!password || password.length < 6) { err.textContent = '密码至少 6 位'; return; }
+  if (password !== confirmPwd) { err.textContent = '两次输入的密码不一致'; return; }
+  if (!confirmOverwriteAccount()) return;
+
+  $('btnCreateSubmit').disabled = true;
+  try {
+    const skBytes = generateSecretKey();
+    const ncryptsec = nip49Encrypt(skBytes, password, 16, 0x02);
+    localStorage.setItem(ACCOUNT_KEY, ncryptsec);
+    localStorage.setItem(NAME_KEY, username);
+    state.myName = username;
+    sk = skBytes;
+    myPub = getPublicKey(sk);
+    await enterTerminal();
+  } catch (e) {
+    err.textContent = '创建失败：' + (e.message || '未知错误');
+  } finally {
+    $('btnCreateSubmit').disabled = false;
+  }
+};
+
+$('btnUnlockSubmit').onclick = async () => {
+  const password = $('unlockPassword').value;
+  const err = $('unlockError');
+  err.textContent = '';
+  if (!password) { err.textContent = '请输入密码'; return; }
+  $('btnUnlockSubmit').disabled = true;
+  try {
+    const ncryptsec = localStorage.getItem(ACCOUNT_KEY);
+    sk = nip49Decrypt(ncryptsec, password);
+    myPub = getPublicKey(sk);
+    state.myName = localStorage.getItem(NAME_KEY) || 'restored-user';
+    await enterTerminal();
+  } catch {
+    err.textContent = '密码错误或账户数据损坏';
+  } finally {
+    $('btnUnlockSubmit').disabled = false;
+  }
+};
+
+$('btnImportSubmit').onclick = async () => {
+  const ncryptsec = $('importNcryptsec').value.trim();
+  const username = $('importUsername').value.trim();
+  const password = $('importPassword').value;
+  const err = $('importError');
+  err.textContent = '';
+  if (!ncryptsec.startsWith('ncryptsec1')) { err.textContent = 'ncryptsec 字符串格式不正确'; return; }
+  if (!username) { err.textContent = '请填写显示名称'; return; }
+  if (!password) { err.textContent = '请输入密码'; return; }
+  if (!confirmOverwriteAccount()) return;
+
+  $('btnImportSubmit').disabled = true;
+  try {
+    sk = nip49Decrypt(ncryptsec, password);
+    myPub = getPublicKey(sk);
+    state.myName = username;
+    localStorage.setItem(ACCOUNT_KEY, ncryptsec);
+    localStorage.setItem(NAME_KEY, username);
+    await enterTerminal();
+  } catch {
+    err.textContent = '导入失败：密码错误或 ncryptsec 无效';
+  } finally {
+    $('btnImportSubmit').disabled = false;
+  }
+};
+
+$('btnGotoImport').onclick = () => showAuthView('import');
+$('btnGotoCreate').onclick = () => showAuthView('create');
+$('btnGotoImportFromUnlock').onclick = () => showAuthView('import');
+
+/* ══════════════════════════════════════════════════════
+   设置
+   ══════════════════════════════════════════════════════ */
+let sendKeyHandler = null;
+
+function initSendKeySetting() {
+  const saved = localStorage.getItem(SEND_KEY_SETTING) || 'ctrl';
+  const sel = $('sendKeySelect');
+  if (sel) sel.value = saved;
+  applySendKey(saved);
+}
+
+function applySendKey(mode) {
+  if (sendKeyHandler) msgInput.removeEventListener('keydown', sendKeyHandler);
+  sendKeyHandler = e => {
+    const isEnter = e.key === 'Enter';
+    const withMod = e.ctrlKey || e.metaKey;
+    const shouldSend =
+      (mode === 'ctrl' && isEnter && withMod) ||
+      (mode === 'enter' && isEnter && !e.shiftKey && !withMod) ||
+      (mode === 'both' && isEnter && (withMod || (!e.shiftKey && !withMod)));
+    if (shouldSend) { e.preventDefault(); sendMessage(); }
+  };
+  msgInput.addEventListener('keydown', sendKeyHandler, { passive: false });
+}
+
+$('sendKeySelect')?.addEventListener('change', e => {
+  localStorage.setItem(SEND_KEY_SETTING, e.target.value);
+  applySendKey(e.target.value);
+});
+
+function initImageCompressSetting() {
+  const sel = $('imageCompressSelect');
+  if (sel) sel.value = localStorage.getItem(IMAGE_COMPRESS_SETTING) || 'off';
+}
+
+$('imageCompressSelect')?.addEventListener('change', e => {
+  localStorage.setItem(IMAGE_COMPRESS_SETTING, e.target.value);
+});
+
+$('fontSizeSelect')?.addEventListener('change', e => {
+  uiSettings.font = e.target.value;
+  saveUISettings();
+  applyUISettings();
+});
+
+$('accentSwatches')?.addEventListener('click', e => {
+  const btn = e.target.closest('.swatch');
+  if (!btn) return;
+  const accent = btn.dataset.accent;
+  if (!ACCENTS.includes(accent)) return;
+  uiSettings.accent = accent;
+  saveUISettings();
+  applyAccent(accent);
+});
+
+$('groupAvatarToggle')?.addEventListener('change', e => {
+  uiSettings.groupAvatars = e.target.checked;
+  saveUISettings();
+  applyUISettings();
+});
+$('dmAvatarToggle')?.addEventListener('change', e => {
+  uiSettings.dmAvatars = e.target.checked;
+  saveUISettings();
+  applyUISettings();
+});
+$('shareAvatarToggle')?.addEventListener('change', e => {
+  uiSettings.shareAvatar = e.target.checked;
+  saveUISettings();
+});
+
+function refreshSettingsUI() {
+  const status = $('settingsAccountStatus');
+  if (status) {
+    status.textContent = state.myName
+      ? `已登录 · ${storageMode === 'fallback' ? '本地兼容存储' : 'IndexedDB'}`
+      : '未登录';
+  }
+  if ($('settingsName')) $('settingsName').textContent = state.myName || '—';
+  if ($('settingsPub')) $('settingsPub').textContent = myPub ? `${myPub.slice(0, 28)}…` : '—';
+  if ($('myPubkeyDisplay')) $('myPubkeyDisplay').value = myPub || '';
+  if ($('exportNcryptsec')) $('exportNcryptsec').value = '';
+  if ($('storageBackend')) $('storageBackend').textContent = storageMode === 'fallback' ? '本地兼容存储' : 'IndexedDB';
+  applyAccent(uiSettings.accent);
+  updateAvatarUI();
+  if (!appDirSupported) {
+    setAppDataStatus(
+      location.protocol === 'file:'
+        ? 'file:// 下浏览器限制文件夹访问。头像保存在本地，请使用“导出资料”手动放入 HTML 同目录的 APP DATA 文件夹。'
+        : '当前浏览器不支持文件夹访问。头像保存在浏览器本地，可用“导出资料”备份。',
+      'warn'
+    );
+  } else if (!appDirHandle) {
+    setAppDataStatus('未连接。点击“选择文件夹”，程序会在其中创建 APP DATA。');
+  }
+  updateAppDataButtons();
+}
+
+function openSettings() {
+  refreshSettingsUI();
+  $('settingsOverlay').classList.remove('hidden');
+}
+
+$('btnSettings').onclick = openSettings;
+$('btnSettingsTop').onclick = openSettings;
+$('btnSettingsBottom').onclick = openSettings;
+$('btnCloseSettings').onclick = () => $('settingsOverlay').classList.add('hidden');
+
+$('btnCopyMyPubkey').onclick = async () => {
+  if (!myPub) return;
+  try {
+    await navigator.clipboard.writeText(myPub);
+    showToast('完整公钥已复制');
+  } catch {
+    const ta = $('myPubkeyDisplay');
+    ta.value = myPub;
+    ta.select();
+    document.execCommand('copy');
+    showToast('已尝试复制，请手动确认');
+  }
+};
+
+$('btnAvatarUpload').onclick = () => $('avatarInput').click();
+$('avatarInput').onchange = async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  if (!/^image\//.test(file.type || '')) { showToast('请选择图片文件'); return; }
+  try {
+    const dataUrl = await fileToAvatarDataUrl(file);
+    profile.avatar = dataUrl;
+    profile.updatedAt = Date.now();
+    saveProfileLocal();
+    showToast(appDirHandle ? '头像已更新，正在写入 APP DATA' : '头像已更新（保存在浏览器本地）');
+    refreshSettingsUI();
+  } catch {
+    showToast('无法读取这张图片');
+  }
+};
+
+$('btnAvatarRemove').onclick = () => {
+  profile.avatar = null;
+  profile.updatedAt = Date.now();
+  saveProfileLocal();
+  refreshSettingsUI();
+  showToast('已移除头像');
+};
+
+$('btnPickAppData').onclick = () => pickAppDataDir();
+$('btnSyncAppData').onclick = async () => {
+  if (!appDirHandle) { await pickAppDataDir(); return; }
+  await syncAppData({ manual: true });
+};
+
+function downloadBlobFile(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+$('btnExportAppData').onclick = () => {
+  const body = {
+    app: '密语',
+    version: 1,
+    name: state.myName || '',
+    pubkey: myPub || '',
+    avatarFile: profile.avatar ? 'avatar.jpg' : null,
+    updatedAt: new Date().toISOString(),
+    settings: uiSettings,
+  };
+  downloadBlobFile(new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' }), 'profile.json');
+  if (profile.avatar) {
+    const blob = dataUrlToBlob(profile.avatar);
+    if (blob) setTimeout(() => downloadBlobFile(blob, 'avatar.jpg'), 300);
+  }
+  showToast('已导出 profile.json' + (profile.avatar ? ' 与 avatar.jpg' : ''));
+};
+
+$('btnExportAccount').onclick = async () => {
+  const ncryptsec = localStorage.getItem(ACCOUNT_KEY);
+  if (!ncryptsec) { showToast('没有可导出的账户'); return; }
+  $('exportNcryptsec').value = ncryptsec;
+  try {
+    await navigator.clipboard.writeText(ncryptsec);
+    showToast('ncryptsec 已复制，请妥善保管');
+  } catch {
+    $('exportNcryptsec').select();
+    document.execCommand('copy');
+    showToast('已生成，请手动复制');
+  }
+};
+
+$('btnLogout').onclick = async () => {
+  if (!confirm('退出登录将清除本设备上当前账户的消息与资料。请确保已导出 ncryptsec。')) return;
+  revokeAllUrls();
+  const key = roomsStorageKey();
+  localStorage.removeItem(ACCOUNT_KEY);
+  localStorage.removeItem(NAME_KEY);
+  localStorage.removeItem(key);
+  localStorage.removeItem(LAST_ROOM_KEY + ':' + myPub);
+  localStorage.removeItem(profileStorageKey());
+  localStorage.removeItem(PEER_AVATAR_KEY);
+  try {
+    const prefix = `${RECALL_KEY_PREFIX}:${myPub}:`;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix)) keys.push(k);
+    }
+    for (const k of keys) localStorage.removeItem(k);
+  } catch { /* 忽略 */ }
+  await deleteAccountData();
+  location.reload();
+};
+
+/* ══════════════════════════════════════════════════════
+   房间弹窗
+   ══════════════════════════════════════════════════════ */
+$('btnNewGroup').onclick = () => {
+  $('roomModalTitle').textContent = '新建群聊频道';
+  $('roomModalDesc').textContent = '创建一个群聊频道。房间标识由名称生成。密码可选，用于端到端加密。';
+  $('roomNameInput').value = ''; $('roomPasswordInput').value = '';
+  $('roomNameLabel').textContent = '频道名称 / 房间标识';
+  $('passwordFieldWrap').style.display = '';
+  $('roomOverlay').classList.remove('hidden');
+  $('roomModalTitle').dataset.mode = 'group';
+  $('roomNameInput').focus();
+};
+
+/* ── 加入群聊按钮：打开专用弹窗 ── */
+$('btnJoinGroup').onclick = () => {
+  $('roomModalTitle').textContent = '加入群聊';
+  $('roomModalDesc').textContent = '输入已有的房间标识（t 标签值），例如 ef-大厅-xxxx。如果有房间密码，请一并填写。';
+  $('roomNameInput').value = ''; $('roomPasswordInput').value = '';
+  $('roomNameLabel').textContent = '房间标识';
+  $('passwordFieldWrap').style.display = '';
+  $('roomOverlay').classList.remove('hidden');
+  $('roomModalTitle').dataset.mode = 'join';
+  $('roomNameInput').focus();
+};
+
+$('btnNewDM').onclick = () => {
+  $('roomModalTitle').textContent = '发起私聊';
+  $('roomModalDesc').textContent = '粘贴对方的 Nostr 公钥（64 位 hex）。消息将通过 NIP-59 Gift Wrap 传输，隐藏发送者元数据。';
+  $('roomNameInput').value = ''; $('roomPasswordInput').value = '';
+  $('roomNameLabel').textContent = '对方公钥 / PUBKEY HEX';
+  $('passwordFieldWrap').style.display = 'none';
+  $('roomOverlay').classList.remove('hidden');
+  $('roomModalTitle').dataset.mode = 'dm';
+  $('roomNameInput').focus();
+};
+
+$('btnCancelRoom').onclick = () => $('roomOverlay').classList.add('hidden');
+
+let roomCreating = false;
+$('btnCreateRoom').onclick = async () => {
+  if (roomCreating) return;
+  const mode = $('roomModalTitle').dataset.mode;
+  const raw = $('roomNameInput').value.trim();
+  const err = $('roomError');
+  err.textContent = '';
+  if (!raw) { err.textContent = '请填写名称或标识'; return; }
+
+  roomCreating = true;
+  $('btnCreateRoom').disabled = true;
+  try {
+    if (mode === 'group') {
+      const id = sanitizeRoomId(raw);
+      const pwd = $('roomPasswordInput').value;
+      await createRoom({
+        id, label: raw, type: 'group',
+        encrypted: !!pwd,
+        password: pwd || null,
+      });
+    } else if (mode === 'join') {
+      const pwd = $('roomPasswordInput').value;
+      const ok = await joinGroupById(raw, pwd);
+      if (!ok) { err.textContent = '加入失败，请检查房间标识'; return; }
+    } else {
+      if (!/^[0-9a-f]{64}$/i.test(raw)) {
+        err.textContent = '公钥必须是 64 位 hex 字符串';
+        return;
+      }
+      const peerPub = raw.toLowerCase();
+      if (peerPub === myPub) { err.textContent = '不能和自己私聊'; return; }
+      const id = await dmRoomId(myPub, peerPub);
+      let convKey;
+      try { convKey = nip44.v2.utils.getConversationKey(sk, peerPub); }
+      catch { err.textContent = '公钥无效，无法派生加密密钥'; return; }
+      await createRoom({
+        id,
+        label: '私聊 · ' + peerPub.slice(0, 8),
+        type: 'dm',
+        convKey,
+        peerPub,
+        encrypted: true,
+      });
+      fetchDMHistory().catch(() => {});
+    }
+    $('roomOverlay').classList.add('hidden');
+  } finally {
+    roomCreating = false;
+    $('btnCreateRoom').disabled = false;
+  }
+};
+
+function sanitizeRoomId(name) {
+  const ascii = name.trim().toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\u4e00-\u9fff-]/g, '');
+  const base = ascii || 'room';
+  let hash = 0;
+  for (let i = 0; i < base.length; i++) hash = ((hash << 5) - hash + base.charCodeAt(i)) | 0;
+  return 'ef-' + base + '-' + Math.abs(hash).toString(36).slice(0, 4);
+}
+
+async function dmRoomId(pubA, pubB) {
+  const sorted = [pubA, pubB].sort().join('|');
+  const hash = await crypto.subtle.digest('SHA-256', enc.encode(sorted));
+  return 'ef-dm-' + toHex(new Uint8Array(hash)).slice(0, 16);
+}
+
+/* ══════════════════════════════════════════════════════
+   交互绑定
+   ══════════════════════════════════════════════════════ */
+sendBtn.onclick = sendMessage;
+
+msgInput.addEventListener('input', () => {
+  msgInput.style.height = 'auto';
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 110) + 'px';
+});
+
+fileBtn.onclick = () => fileInput.click();
+fileInput.onchange = async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  for (const f of files) {
+    try { await sendFile(f); }
+    catch { flashGlitch(); }
+  }
+};
+
+$('mobileToggle').onclick = () => {
+  const open = $('sidebar').classList.toggle('mobile-open');
+  $('sidebarBackdrop').classList.toggle('show', open);
+};
+$('sidebarBackdrop').onclick = () => {
+  $('sidebar').classList.remove('mobile-open');
+  $('sidebarBackdrop').classList.remove('show');
+};
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeMsgMenu();
+    const settings = $('settingsOverlay');
+    if (!settings.classList.contains('hidden')) settings.classList.add('hidden');
+    const roomOverlay = $('roomOverlay');
+    if (!roomOverlay.classList.contains('hidden')) roomOverlay.classList.add('hidden');
+    $('sidebar').classList.remove('mobile-open');
+    $('sidebarBackdrop').classList.remove('show');
+  }
+});
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    document.getElementById('app').style.height = window.visualViewport.height + 'px';
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   启动
+   ══════════════════════════════════════════════════════ */
+async function boot() {
+  loadUISettings();
+  applyUISettings();
+  const saved = localStorage.getItem(ACCOUNT_KEY);
+  if (saved) {
+    showAuthView('unlock');
+    $('unlockDesc').textContent = `账户：${localStorage.getItem(NAME_KEY) || '未知'}。输入密码解锁。`;
+    $('unlockPassword').focus();
+  } else {
+    showAuthView('create');
+    $('createUsername').focus();
+  }
+}
+
+window.addEventListener('pagehide', revokeAllUrls);
+window.addEventListener('beforeunload', revokeAllUrls);
+window.addEventListener('pageshow', () => {
+  const room = state.rooms.get(state.activeRoom);
+  if (!room) return;
+  hydrateBlobUrls(room).then(() => {
+    if (state.activeRoom === room.id) {
+      renderedSignature = null;
+      renderMessages();
+    }
+  });
+});
+
+boot();
+</script>
+</body>
+</html>
