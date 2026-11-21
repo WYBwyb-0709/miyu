@@ -23,6 +23,7 @@ npm-debug.log*
 
 # Signing material — never commit these
 android/keystore.properties
+android/local.properties
 android/*.keystore
 android/*.jks
 *.p12

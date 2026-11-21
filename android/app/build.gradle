@@ -1,10 +1,12 @@
 apply plugin: 'com.android.application'
 
-def keystorePropertiesFile = rootProject.file('keystore.properties')
-def keystoreProperties = new Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+// Resolve signing credentials from local.properties (gitignored).
+def lp = new Properties()
+def lpFile = rootProject.file('local.properties')
+if (lpFile.exists()) {
+    lp.load(new FileInputStream(lpFile))
 }
+def hasKeystore = lpFile.exists() && lp.getProperty('miyu.storeFile') != null
 
 android {
     namespace = "com.miyu.app"
@@ -12,11 +14,11 @@ android {
 
     signingConfigs {
         release {
-            if (keystorePropertiesFile.exists()) {
-                storeFile rootProject.file(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
+            if (hasKeystore) {
+                storeFile file(lp['miyu.storeFile'])
+                storePassword lp['miyu.storePassword']
+                keyAlias lp['miyu.keyAlias']
+                keyPassword lp['miyu.keyPassword']
             }
         }
     }
@@ -33,12 +35,16 @@ android {
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
+        packagingOptions {
+            doNotStrip '*/mips/*.so'
+            doNotStrip '*/mips64/*.so'
+        }
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            if (keystorePropertiesFile.exists()) {
+            if (hasKeystore) {
                 signingConfig signingConfigs.release
             }
         }
