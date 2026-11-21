@@ -391,6 +391,58 @@
       try { localStorage.removeItem(fallbackOutboxKey(key)); } catch { /* 忽略 */ }
     },
 
+    /* 仅清理当前账户下属于指定房间的 outbox 记录，绝不触碰其他房间/其他账户 */
+    async outboxDeleteRoom(roomId) {
+      if (!roomId) return;
+      if (mode !== 'fallback') {
+        try {
+          const db = await openDB();
+          const tx = db.transaction('outbox', 'readwrite');
+          const prefix = `${account}:`;
+          const req = tx.objectStore('outbox').openCursor();
+          req.onsuccess = () => {
+            const c = req.result;
+            if (!c) return;
+            const rec = c.value;
+            if (rec && typeof rec.k === 'string' && rec.k.startsWith(prefix)
+              && rec.v && rec.v.roomId === roomId) c.delete();
+            c.continue();
+          };
+          await txDone(tx);
+          return;
+        } catch { mode = 'fallback'; }
+      }
+      try {
+        const lsPrefix = `miyu.ob.${account}.`;
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (!k || !k.startsWith(lsPrefix)) continue;
+          let v = null;
+          try { v = JSON.parse(localStorage.getItem(k)); } catch { v = null; }
+          if (v && v.roomId === roomId) localStorage.removeItem(k);
+        }
+      } catch { /* 忽略 */ }
+    },
+
+    /* 只判断 blob 是否存在，不把文件内容读进内存 */
+    async hasBlob(id) {
+      if (!id) return false;
+      if (memBlobs.has(`${account}:${id}`)) return true;
+      if (mode !== 'fallback') {
+        try {
+          const db = await openDB();
+          const tx = db.transaction('blobs', 'readonly');
+          const found = await new Promise((resolve) => {
+            const req = tx.objectStore('blobs').getKey(`${account}:${id}`);
+            req.onsuccess = () => resolve(req.result != null);
+            req.onerror = () => resolve(false);
+          });
+          if (found) return true;
+        } catch { mode = 'fallback'; }
+      }
+      try { return localStorage.getItem(fallbackBlobKey(id)) != null; } catch { return false; }
+    },
+
     async clearAccount() {
       memBlobs.clear();
       if (mode !== 'fallback') {

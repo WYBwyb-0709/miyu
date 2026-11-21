@@ -317,7 +317,16 @@
       room.events.push(item);
       room.seen.add(item.ev.id);
       if (item.fileMeta && item.fileMeta.mid && recalled) room.recalledFiles.add(item.fileMeta.mid);
-      if (isFile) room.seen.delete(item.ev.id);
+      if (isFile) {
+        /* 已落盘的文件恢复完成态并保留 seen，避免订阅重放触发重复拉取；缺缓存才允许重新接收 */
+        const cached = await MY.store.hasBlob(item.ev.id).catch(() => false);
+        if (cached) {
+          item.fileProgress = 1;
+          item.transferState = 'ok';
+        } else {
+          room.seen.delete(item.ev.id);
+        }
+      }
     }
 
     if (!room.lastActivity) {
@@ -1178,6 +1187,8 @@
     const ok = await MY.ui.confirm('清空聊天记录', `清空“${room.label}”在本机的全部消息和文件缓存？其他设备和服务器上的记录不会被删除。`, '清空');
     if (!ok) return;
     await MY.store.deleteRoom(room.id).catch(() => {});
+    await MY.store.outboxDeleteRoom(room.id).catch(() => {});
+    MY.files.forgetRoom(room.id);
     MY.ui.revokeRoomUrls(room);
     room.events = [];
     room.seen.clear();
@@ -1203,6 +1214,8 @@
     if (!ok) return;
     for (const room of S.rooms.values()) {
       await MY.store.deleteRoom(room.id).catch(() => {});
+      await MY.store.outboxDeleteRoom(room.id).catch(() => {});
+      MY.files.forgetRoom(room.id);
       MY.ui.revokeRoomUrls(room);
       room.events = [];
       room.seen.clear();
@@ -1237,6 +1250,8 @@
     );
     if (!ok) return;
     await MY.store.deleteRoom(room.id).catch(() => {});
+    await MY.store.outboxDeleteRoom(room.id).catch(() => {});
+    MY.files.forgetRoom(room.id);
     MY.ui.revokeRoomUrls(room);
     S.rooms.delete(room.id);
     if (S.activeRoomId === room.id) {
@@ -1428,6 +1443,15 @@
     }
     if (send) send.disabled = !ready;
     if (file) file.disabled = !ready;
+    const hint = $('composerHint');
+    if (hint) {
+      const mode = (S.settings && S.settings.sendKey) || 'enter';
+      hint.textContent = !ready ? '' : mode === 'ctrl'
+        ? 'Ctrl+Enter 发送 · Enter 换行'
+        : mode === 'both'
+          ? 'Enter 或 Ctrl+Enter 发送 · Shift+Enter 换行'
+          : 'Enter 发送 · Shift+Enter 换行';
+    }
     if (!ready) {
       const panel = $('emojiPanel');
       if (panel) panel.classList.add('hidden');

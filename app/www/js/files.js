@@ -452,6 +452,23 @@
     if (buf.chunks.size === buf.meta.n) finish(room, key, buf).catch(() => {});
   }
 
+  /* 房间被清空/删除/退出时，丢弃该房间的发送缓存与接收缓冲 */
+  function forgetRoom(roomId) {
+    if (!roomId) return;
+    for (const key of [...sentCache.keys()]) {
+      if (key.startsWith(`${roomId}:`)) sentCache.delete(key);
+    }
+    for (const key of [...rxBuffers.keys()]) {
+      const a = key.indexOf(':');
+      const b = key.lastIndexOf(':');
+      if (a >= 0 && b > a && key.slice(a + 1, b) === roomId) {
+        clearTimeout(rxTimers.get(key));
+        rxTimers.delete(key);
+        rxBuffers.delete(key);
+      }
+    }
+  }
+
   async function handleNeed(room, payload) {
     let cache = sentCache.get(cacheKey(room.id, payload.mid));
     if (!cache) {
@@ -466,6 +483,6 @@
   }
 
   MY.files = {
-    send, retry, ingest, handleNeed, parseFilePayload, parseNeedPayload, restore,
+    send, retry, ingest, handleNeed, parseFilePayload, parseNeedPayload, restore, forgetRoom,
   };
 })(window.MY = window.MY || {});
