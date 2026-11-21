@@ -122,9 +122,13 @@
     el.textContent = '';
     for (const room of rooms) {
       const item = document.createElement('div');
-      item.className = 'room-item' + (S.activeRoomId === room.id ? ' active' : '');
+      item.className = 'room-item'
+        + (S.activeRoomId === room.id ? ' active' : '')
+        + (room.pinned ? ' pinned' : '');
       item.dataset.roomId = room.id;
 
+      const avWrap = document.createElement('div');
+      avWrap.className = 'room-avatar-wrap';
       const av = document.createElement('div');
       av.className = 'room-avatar';
       if (room.type === 'dm' && room.peerPub) {
@@ -160,20 +164,23 @@
 
       meta.append(name, sub);
 
+      avWrap.appendChild(av);
+      if (room.unread > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'room-unread-badge';
+        badge.textContent = room.unread > 99 ? '99+' : String(room.unread);
+        badge.setAttribute('aria-label', `${room.unread} 条未读`);
+        avWrap.appendChild(badge);
+      }
+
       const side = document.createElement('div');
       side.className = 'room-side';
       const time = document.createElement('div');
       time.className = 'room-time';
       time.textContent = U.fmtRoomTime(room.lastActivity);
       side.appendChild(time);
-      if (room.unread > 0) {
-        const badge = document.createElement('div');
-        badge.className = 'room-badge unread';
-        badge.textContent = room.unread > 99 ? '99+' : String(room.unread);
-        side.appendChild(badge);
-      }
 
-      item.append(av, meta, side);
+      item.append(avWrap, meta, side);
       item.onclick = () => MY.chat.switchRoom(room.id);
       item.tabIndex = 0;
       item.setAttribute('role', 'button');
@@ -421,7 +428,9 @@
   function buildFileBubble(item, meta, room) {
     const bubble = document.createElement('div');
     bubble.className = 'msg-bubble';
-    if (item.downloadUrl && String(meta.mime || '').startsWith('image/')) {
+    const isImage = String(meta.mime || '').startsWith('image/');
+    if (item.downloadUrl && isImage) {
+      bubble.classList.add('image-bubble');
       const prev = document.createElement('div');
       prev.className = 'file-preview';
       const img = document.createElement('img');
@@ -431,6 +440,28 @@
       prev.appendChild(img);
       prev.onclick = () => openImage(item.downloadUrl);
       bubble.appendChild(prev);
+
+      const caption = document.createElement('div');
+      caption.className = 'file-caption';
+      const cn = document.createElement('span');
+      cn.className = 'n';
+      cn.textContent = meta.name || '图片';
+      const save = document.createElement('button');
+      save.className = 'save';
+      save.type = 'button';
+      save.textContent = '保存';
+      save.onclick = async (e) => {
+        e.stopPropagation();
+        const blob = await MY.store.loadBlob(item.ev.id);
+        if (!blob) {
+          toast('文件缓存已失效，请让对方重新发送');
+          return;
+        }
+        await U.saveBlob(blob, meta.name);
+      };
+      caption.append(cn, save);
+      bubble.appendChild(caption);
+      return bubble;
     }
     const card = document.createElement('div');
     card.className = 'file-card';
@@ -498,7 +529,7 @@
     return bubble;
   }
 
-  function buildMessageEl(item) {
+  function buildMessageEl(item, showSender = true) {
     const room = P.roomById(S.activeRoomId);
     const ev = item.ev;
     const mine = (item.displayPubkey || ev.pubkey) === S.pub;
@@ -528,7 +559,7 @@
     const body = document.createElement('div');
     body.className = 'msg-body';
 
-    if (!mine && room && room.type === 'group') {
+    if (!mine && showSender && room && room.type === 'group') {
       const s = document.createElement('div');
       s.className = 'msg-sender';
       s.textContent = item.senderName || P.displayName(item.displayPubkey || ev.pubkey);
@@ -556,21 +587,20 @@
     if (quote) bubble.insertBefore(quote, bubble.firstChild);
     body.appendChild(bubble);
 
-    const time = document.createElement('div');
-    time.className = 'msg-time';
-    time.textContent = U.fmtTime(ev.created_at);
-    body.appendChild(time);
-
     if (!item.fileMeta && (item.status === 'pending' || item.status === 'fail')) {
-      const st = document.createElement('div');
-      st.className = 'msg-status ' + (item.status === 'fail' ? 'fail' : 'pending');
-      st.textContent = item.status === 'fail' ? '发送失败' : '发送中…';
-      body.appendChild(st);
-      if (item.status === 'fail') {
+      if (item.status === 'pending') {
+        const st = document.createElement('div');
+        st.className = 'msg-state pending';
+        st.title = '发送中';
+        st.setAttribute('aria-label', '发送中');
+        body.appendChild(st);
+      } else {
         const retry = document.createElement('button');
-        retry.className = 'msg-retry';
+        retry.className = 'msg-state fail';
         retry.type = 'button';
-        retry.textContent = '重发';
+        retry.title = '发送失败，点击重发';
+        retry.setAttribute('aria-label', '发送失败，点击重发');
+        retry.textContent = '!';
         retry.onclick = (e) => {
           e.stopPropagation();
           MY.chat.retryText(item);
@@ -730,16 +760,20 @@
     }
 
     let prevAt = 0;
+    let prevSender = '';
     for (const item of items) {
       const at = item.ev.created_at;
-      if (!prevAt || at - prevAt > 5 * 60 || new Date(at * 1000).toDateString() !== new Date(prevAt * 1000).toDateString()) {
+      const newBlock = !prevAt || at - prevAt > 5 * 60 || new Date(at * 1000).toDateString() !== new Date(prevAt * 1000).toDateString();
+      if (newBlock) {
         const sep = document.createElement('div');
         sep.className = 'msg-date';
         sep.textContent = U.fmtMsgDate(at);
         el.appendChild(sep);
       }
       prevAt = at;
-      el.appendChild(buildMessageEl(item));
+      const sender = item.recalled ? '' : (item.displayPubkey || item.ev.pubkey);
+      el.appendChild(buildMessageEl(item, newBlock || sender !== prevSender));
+      prevSender = sender;
     }
 
     if (!items.length) {

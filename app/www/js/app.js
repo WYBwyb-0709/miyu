@@ -574,7 +574,13 @@
 
     if ($('btnCloseInfo')) $('btnCloseInfo').onclick = () => $('infoOverlay').classList.add('hidden');
     if ($('btnCloseImage')) $('btnCloseImage').onclick = () => MY.ui.closeImage();
+    if ($('imageOverlay')) {
+      $('imageOverlay').onclick = (e) => {
+        if (e.target === $('imageOverlay')) MY.ui.closeImage();
+      };
+    }
 
+    if ($('btnProfileEntry')) $('btnProfileEntry').onclick = openSettings;
     if ($('btnSettingsBottom')) $('btnSettingsBottom').onclick = openSettings;
     if ($('btnCloseSettings')) $('btnCloseSettings').onclick = closeSettings;
     if ($('btnLogout')) {
@@ -604,6 +610,7 @@
       $('sendKeySelect').addEventListener('change', (e) => {
         S.settings.sendKey = e.target.value;
         MY.settings.saveSettings();
+        MY.chat.updateComposer();
       });
     }
     const accents = $('accentSwatches');
