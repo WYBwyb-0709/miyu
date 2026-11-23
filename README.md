@@ -6,25 +6,13 @@
 
 ![密语桌面端](dist/screenshots/desktop.png)
 
-## 直接使用
+## 获取与构建
 
-仓库的 `dist/` 目录内有已构建好的安装包：
+仓库只包含源码，安装包不随代码入库（`dist/` 为构建输出目录）。自行构建方式见下文「从源码构建」。
 
-| 平台 | 文件 | 大小 | 说明 |
-|---|---|---|---|
-| Windows 10/11 x64 | `dist/Miyu-1.0.0-portable.exe` | 105.2 MiB | 便携版，无需安装 |
-| Android 13–16 | `dist/Miyu-1.0.0-android-debug.apk` | 9.5 MiB | debug 签名，可直接安装 |
-
-SHA-256：
-
-```text
-Miyu-1.0.0-portable.exe       C22C5A0F714D3C1E4BCE54FCE3899FB15706899822B326E022F09DB83364D8BE
-Miyu-1.0.0-android-debug.apk  0D280A3DAD8EB80DC3397763EA9C5CE228BAA494649122D0A7763855C0C6E70C
-```
-
-> Windows SmartScreen 可能提示“未知发布者”，因为安装包没有商业代码签名证书。选择“更多信息 → 仍要运行”即可。
+> Windows SmartScreen 可能提示“未知发布者”，因为本地构建的安装包没有商业代码签名证书。选择“更多信息 → 仍要运行”即可。
 >
-> Android 安装时需要允许“安装未知应用”。本 APK 使用 Android debug 密钥签名，适合自用和测试；正式分发建议按 [Android 文档](docs/ANDROID.md) 生成自己的 release 签名。
+> Android 安装时需要允许“安装未知应用”。默认构建使用 Android debug 密钥签名，适合自用和测试；正式分发建议按 [Android 文档](docs/ANDROID.md) 生成自己的 release 签名。
 
 ## 功能
 
@@ -210,7 +198,7 @@ cd android
 
 产物：`android/app/build/outputs/apk/debug/app-debug.apk`。
 
-Gradle 内存占用默认已调低（`-Xmx1024m`、2 个 worker），适合 4 GB 内存机器。完整步骤、签名与常见问题见 [docs/ANDROID.md](docs/ANDROID.md)。
+Gradle 内存占用默认已调低（`-Xmx800m`、单 worker），适合低内存机器。完整步骤、签名与常见问题见 [docs/ANDROID.md](docs/ANDROID.md)。
 
 ### PWA
 

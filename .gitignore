@@ -18,6 +18,8 @@ android/app/src/main/assets/capacitor.plugins.json
 relay/data/
 MiyuData/
 *.log
+build-errors.txt
+build-output.txt
 hs_err_pid*
 npm-debug.log*
 
